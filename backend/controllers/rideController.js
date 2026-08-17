@@ -12,10 +12,10 @@ exports.estimateFare = async (req, res) => {
     }
 
     // Distance calculation logic (mock Haversine formula)
-    const lat1 = pickup.lat || 37.7749;
-    const lng1 = pickup.lng || -122.4194;
-    const lat2 = dropoff.lat || 37.7833;
-    const lng2 = dropoff.lng || -122.4167;
+    const lat1 = pickup.lat || 12.9716;
+    const lng1 = pickup.lng || 77.5946;
+    const lat2 = dropoff.lat || 12.9780;
+    const lng2 = dropoff.lng || 77.6400;
 
     const R = 6371; // Earth radius in km
     const dLat = (lat2 - lat1) * Math.PI / 180;

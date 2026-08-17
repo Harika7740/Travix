@@ -11,6 +11,8 @@ class _UserPortalScreenState extends State<UserPortalScreen> {
   bool _femalePriority = true;
   bool _guardianMode = true;
   int _selectedTabIndex = 0;
+  final _pickupController = TextEditingController(text: 'MG Road, Bengaluru, Karnataka, India');
+  final _dropoffController = TextEditingController(text: 'Indiranagar 100ft Road, Bengaluru, Karnataka, India');
 
   @override
   Widget build(BuildContext context) {

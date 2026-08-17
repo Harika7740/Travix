@@ -41,25 +41,19 @@ const UserPortal = {
   renderBookingView() {
     return `
       <h2><i class="fa-solid fa-bolt" style="color:var(--primary);"></i> Book Your Safe Ride</h2>
-      
-      <div class="map-view-container">
-        <!-- Interactive Map Wrapper -->
-        <div class="map-wrapper">
-          <div id="map"></div>
+      <div class="user-portal-grid">
+        <div class="map-card-container">
+          <div id="map" style="height: 100%; width: 100%; min-height: 480px; border-radius: 16px;"></div>
         </div>
-
-        <!-- Booking Form & Fare Calculator -->
-        <div class="booking-panel">
+        <div class="booking-control-card">
           <h3><i class="fa-solid fa-location-dot"></i> Route Details</h3>
-          
-          <div class="form-group">
-            <label>Pickup Location</label>
-            <input type="text" id="pickup-input" class="form-control" value="742 Market St, San Francisco, CA">
+          <div class="form-group" style="margin-top: 1rem;">
+            <label>PICKUP LOCATION</label>
+            <input type="text" id="pickup-input" class="form-input" value="MG Road, Bengaluru, Karnataka, India" />
           </div>
-
           <div class="form-group">
-            <label>Dropoff Destination</label>
-            <input type="text" id="dropoff-input" class="form-control" value="Union Square, San Francisco, CA">
+            <label>DROPOFF DESTINATION</label>
+            <input type="text" id="dropoff-input" class="form-input" value="Indiranagar 100ft Road, Bengaluru, Karnataka, India" />
           </div>
 
           <!-- Safety Preferences Toggles -->

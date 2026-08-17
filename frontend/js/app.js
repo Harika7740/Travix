@@ -39,9 +39,9 @@ const App = {
       this.map = null;
     }
 
-    // San Francisco default coordinates
-    const sfCenter = [37.7749, -122.4194];
-    this.map = L.map('map').setView(sfCenter, 14);
+    // Bengaluru MG Road default coordinates
+    const indiaCenter = [12.9716, 77.5946];
+    this.map = L.map('map').setView(indiaCenter, 14);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
@@ -49,14 +49,14 @@ const App = {
     }).addTo(this.map);
 
     // Pickup & Dropoff Markers
-    const pickupMarker = L.marker([37.7749, -122.4194]).addTo(this.map).bindPopup('<b>Pickup:</b> Market St').openPopup();
-    const dropoffMarker = L.marker([37.7833, -122.4167]).addTo(this.map).bindPopup('<b>Dropoff:</b> Union Square');
+    const pickupMarker = L.marker([12.9716, 77.5946]).addTo(this.map).bindPopup('<b>Pickup:</b> MG Road, Bengaluru, Karnataka, India').openPopup();
+    const dropoffMarker = L.marker([12.9780, 77.6400]).addTo(this.map).bindPopup('<b>Dropoff:</b> Indiranagar 100ft Road, Bengaluru, Karnataka, India');
 
     // Route line
     const routeLine = L.polyline([
-      [37.7749, -122.4194],
-      [37.7780, -122.4180],
-      [37.7833, -122.4167]
+      [12.9716, 77.5946],
+      [12.9750, 77.6100],
+      [12.9780, 77.6400]
     ], { color: '#2563eb', weight: 5, opacity: 0.8 }).addTo(this.map);
 
     // Driver vehicle marker
@@ -65,10 +65,10 @@ const App = {
       html: `<div style="background:#ec4899; color:white; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 0 12px rgba(236,72,153,0.8);"><i class="fa-solid fa-car"></i></div>`,
       iconSize: [32, 32]
     });
-    this.driverMarker = L.marker([37.7749, -122.4194], { icon: carIcon }).addTo(this.map).bindPopup('<b>Driver Sarah Smith</b><br>Toyota Camry (TRX-8899)');
+    this.driverMarker = L.marker([12.9725, 77.5980], { icon: carIcon }).addTo(this.map).bindPopup('<b>Driver Ananya Sharma</b><br>White Tata Nexon EV (KA-01-EQ-4921)');
 
     // Unsafe Zone Circle
-    L.circle([37.7812, -122.4111], {
+    L.circle([12.9810, 77.6080], {
       color: '#ef4444',
       fillColor: '#f87171',
       fillOpacity: 0.25,
