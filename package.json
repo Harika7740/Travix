@@ -1,0 +1,11 @@
+{
+  "name": "travix-root",
+  "version": "1.0.0",
+  "description": "TRAVIX Full Stack Platform & Appium Testing Suite",
+  "scripts": {
+    "start": "node backend/server.js",
+    "test:appium": "node appium_testing/runner.js",
+    "test:selenium": "node selenium_testing/runner_300.js",
+    "test:load": "node load_testing/runner.js"
+  }
+}

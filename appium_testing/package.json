@@ -1,0 +1,30 @@
+{
+  "name": "travix-appium-e2e-testing",
+  "version": "1.0.0",
+  "description": "Appium & WebDriverIO End-to-End Automated Testing Suite for TRAVIX Android & Web Platform with Excel Analysis Reporting",
+  "main": "runner.js",
+  "scripts": {
+    "test": "node runner.js",
+    "test:300": "node runner_300.js",
+    "test:appium": "wdio run config/appium.conf.js"
+  },
+  "keywords": [
+    "appium",
+    "webdriverio",
+    "android",
+    "e2e-testing",
+    "excel-report",
+    "travix"
+  ],
+  "author": "TRAVIX QA Team",
+  "license": "MIT",
+  "dependencies": {
+    "appium": "^2.5.1",
+    "appium-uiautomator2-driver": "^3.0.0",
+    "dotenv": "^16.6.1",
+    "exceljs": "^4.4.0",
+    "jszip": "^3.10.1",
+    "mocha": "^10.4.0",
+    "webdriverio": "^8.35.0"
+  }
+}

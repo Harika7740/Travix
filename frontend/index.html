@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="TRAVIX - Safety-First Ride-Hailing Platform with Guardian Mode, Voice SOS, and Female Driver Priority.">
+  <title>TRAVIX - Safety-First Ride-Hailing Web Application</title>
+  
+  <!-- Google Fonts Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons & Leaflet CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  
+  <!-- App Styles -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header class="navbar">
+    <div class="brand-logo">
+      <div class="brand-icon">
+        <i class="fa-solid fa-shield-halved"></i>
+      </div>
+      <span>TRAVIX</span>
+    </div>
+
+    <!-- Portal Switcher Bar -->
+    <div class="portal-switcher">
+      <button id="btn-portal-user" class="portal-btn active" onclick="switchPortal('user')">
+        <i class="fa-solid fa-user"></i> Passenger Portal
+      </button>
+      <button id="btn-portal-driver" class="portal-btn" onclick="switchPortal('driver')">
+        <i class="fa-solid fa-car-side"></i> Driver Portal
+      </button>
+      <button id="btn-portal-admin" class="portal-btn" onclick="switchPortal('admin')">
+        <i class="fa-solid fa-user-shield"></i> Admin Command
+      </button>
+    </div>
+
+    <!-- Quick User & Voice SOS Quick Trigger -->
+    <div class="user-quick-profile">
+      <button class="sos-trigger-btn" onclick="triggerGlobalSOS()">
+        <i class="fa-solid fa-triangle-exclamation"></i> VOICE SOS
+      </button>
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <img id="header-avatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80" style="width:36px; height:36px; border-radius:50%; border:2px solid var(--primary);" alt="User Avatar">
+        <span id="header-user-name" style="font-weight:600; font-size:0.9rem;">Jane Doe</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Application Body Grid -->
+  <div class="app-container">
+    
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" id="app-sidebar">
+      <!-- Dynamic navigation links generated via JS per portal -->
+    </aside>
+
+    <!-- Main View Content Area -->
+    <main class="content-area" id="main-content">
+      <!-- Views rendered via JS -->
+    </main>
+  </div>
+
+  <!-- Toast Alert Notifications -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Leaflet Maps Script -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  
+  <!-- Modular JS Application Scripts -->
+  <script src="js/userPortal.js"></script>
+  <script src="js/driverPortal.js"></script>
+  <script src="js/adminPortal.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
