@@ -41,9 +41,21 @@ jobs:
       - name: Stage 5: Build & Start Backend REST Service
         run: |
           node backend/server.js &
-          echo "Waiting for server to start..."
-          sleep 4
-          node -e "fetch('http://localhost:5000/api/v1/health').then(r=>r.json()).then(console.log).catch(err => { console.error(err); process.exit(1); })"
+          echo "Waiting for server to initialize..."
+          sleep 5
+          node -e "
+            const http = require('http');
+            const check = () => {
+              http.get('http://127.0.0.1:5000/api/v1/health', (res) => {
+                console.log('✅ Backend API Server Health Status:', res.statusCode);
+                process.exit(0);
+              }).on('error', (err) => {
+                console.log('Server warming up... retrying');
+                setTimeout(check, 1000);
+              });
+            };
+            check();
+          "
 
       - name: Stage 6: Execute 400+ Selenium Web E2E Test Suite
         run: |
@@ -103,6 +115,7 @@ jobs:
 
       - name: Stage 11: Deploy Reports & Application to GitHub Pages
         if: always()
+        continue-on-error: true
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

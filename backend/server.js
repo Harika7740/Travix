@@ -76,7 +76,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`================================================`);
   console.log(`🚀 TRAVIX Backend REST Server active on port ${PORT}`);
   console.log(`📡 Base URL: http://localhost:${PORT}/api/v1`);
