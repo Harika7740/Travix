@@ -462,49 +462,86 @@ const App = {
     App.showToast(`🔍 Calculating fares for "${addressText}"...`, 'info');
 
     try {
-      const cleanAddress = addressText.trim();
+      let cleanAddress = addressText.trim().toLowerCase();
+
+      // Auto-correct common typos
+      cleanAddress = cleanAddress.replace(/\btsand\b/g, 'stand')
+                                 .replace(/\bbus tsand\b/g, 'bus stand')
+                                 .replace(/\bcentr\b/g, 'centre');
+
+      // 1. Instant Known Landmark Database (Chennai / Tamil Nadu / India)
+      const landmarkDb = [
+        { keys: ['poonamallee bus stand', 'poonamalle bus stand', 'poonamalle bus tsand', 'poonamallee bus terminus'], lat: 13.0494, lng: 80.0934, name: 'Poonamallee Bus Terminus, Chennai' },
+        { keys: ['poonamallee', 'poonamalle', 'poonamallee bypass'], lat: 13.0480, lng: 80.0950, name: 'Poonamallee, Chennai' },
+        { keys: ['saveetha', 'saveetha engineering college', 'saveetha university'], lat: 13.0281, lng: 80.0161, name: 'Saveetha Engineering College, Thandalam' },
+        { keys: ['thandalam'], lat: 13.0281, lng: 80.0161, name: 'Thandalam, Chennai' },
+        { keys: ['kg center point', 'kg centre point', 'kg center', 'kg centre'], lat: 13.0210, lng: 80.0050, name: 'KG Centre Point, Thandalam' },
+        { keys: ['porur', 'porur junction', 'porur roundtana'], lat: 13.0382, lng: 80.1565, name: 'Porur Junction, Chennai' },
+        { keys: ['t nagar', 'thyagaraya nagar'], lat: 13.0418, lng: 80.2341, name: 'T. Nagar, Chennai' },
+        { keys: ['chennai central', 'central railway station'], lat: 13.0827, lng: 80.2707, name: 'Chennai Central Railway Station' },
+        { keys: ['chennai airport', 'meenambakkam airport'], lat: 12.9941, lng: 80.1709, name: 'Chennai International Airport' },
+        { keys: ['velachery', 'velachery main road'], lat: 12.9759, lng: 80.2212, name: 'Velachery, Chennai' },
+        { keys: ['guindy', 'guindy race course'], lat: 13.0067, lng: 80.2020, name: 'Guindy, Chennai' },
+        { keys: ['sriperumbudur', 'sriperumbudur bus stand'], lat: 12.9683, lng: 79.9497, name: 'Sriperumbudur, Tamil Nadu' },
+        { keys: ['indiranagar', 'indiranagar 100ft road'], lat: 12.9780, lng: 77.6400, name: 'Indiranagar 100ft Road, Bengaluru' },
+        { keys: ['mg road', 'mg road bengaluru'], lat: 12.9716, lng: 77.5946, name: 'MG Road, Bengaluru' }
+      ];
+
       let lat = null;
       let lng = null;
-      let displayName = cleanAddress;
+      let displayName = addressText.trim();
 
-      // 1. Query OpenStreetMap Nominatim Geocoding API
-      const searchUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cleanAddress)}`;
-      const response = await fetch(searchUrl);
-      const results = await response.json();
+      // Check landmark dictionary matches first
+      const matchedLandmark = landmarkDb.find(item => 
+        item.keys.some(k => cleanAddress.includes(k) || k.includes(cleanAddress))
+      );
 
-      if (results && results.length > 0) {
-        lat = parseFloat(results[0].lat);
-        lng = parseFloat(results[0].lon);
-        displayName = results[0].display_name.split(',')[0] || cleanAddress;
+      if (matchedLandmark) {
+        lat = matchedLandmark.lat;
+        lng = matchedLandmark.lng;
+        displayName = matchedLandmark.name;
       } else {
-        // Fallback for custom landmark names: calculate pseudo-offset from pickup
-        const pRefLat = App.currentPickup ? App.currentPickup.lat : 13.0280;
-        const pRefLng = App.currentPickup ? App.currentPickup.lng : 80.0170;
-        const hash = Array.from(cleanAddress).reduce((acc, char) => acc + char.charCodeAt(0), 0);
-        const offsetLat = ((hash % 50) - 25) * 0.0015;
-        const offsetLng = ((hash % 40) - 20) * 0.0015;
+        // 2. Query OpenStreetMap Nominatim API with sanitized query
+        const pRefLat = App.currentPickup ? App.currentPickup.lat : 13.0281;
+        const pRefLng = App.currentPickup ? App.currentPickup.lng : 80.0161;
 
-        lat = pRefLat + (offsetLat === 0 ? 0.015 : offsetLat);
-        lng = pRefLng + (offsetLng === 0 ? 0.015 : offsetLng);
+        const queryStr = `${cleanAddress}, Tamil Nadu, India`;
+        const searchUrl = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=in&q=${encodeURIComponent(queryStr)}`;
+        const response = await fetch(searchUrl);
+        const results = await response.json();
+
+        if (results && results.length > 0) {
+          lat = parseFloat(results[0].lat);
+          lng = parseFloat(results[0].lon);
+          displayName = results[0].display_name.split(',')[0] || addressText;
+        } else {
+          // Dynamic offset near reference pickup
+          const hash = Array.from(cleanAddress).reduce((acc, char) => acc + char.charCodeAt(0), 0);
+          const offsetLat = 0.02 + ((hash % 15) * 0.002);
+          const offsetLng = 0.03 + ((hash % 12) * 0.002);
+
+          lat = isPickup ? pRefLat : pRefLat + offsetLat;
+          lng = isPickup ? pRefLng : pRefLng + offsetLng;
+        }
       }
 
       if (isPickup) {
-        App.currentPickup = { lat, lng, address: cleanAddress };
+        App.currentPickup = { lat, lng, address: displayName };
         if (App.pickupMarker) {
           App.pickupMarker.setLatLng([lat, lng]).bindPopup(`<b>📍 Pickup Pin:</b> ${displayName}`).openPopup();
         }
       } else {
-        App.currentDropoff = { lat, lng, address: cleanAddress };
+        App.currentDropoff = { lat, lng, address: displayName };
         if (App.dropoffMarker) {
           App.dropoffMarker.setLatLng([lat, lng]).bindPopup(`<b>🏁 Dropoff Pin:</b> ${displayName}`).openPopup();
         }
       }
 
       // Update polyline route
-      const pLat = App.currentPickup ? App.currentPickup.lat : 13.0280;
-      const pLng = App.currentPickup ? App.currentPickup.lng : 80.0170;
-      const dLat = App.currentDropoff ? App.currentDropoff.lat : 13.0210;
-      const dLng = App.currentDropoff ? App.currentDropoff.lng : 80.0050;
+      const pLat = App.currentPickup ? App.currentPickup.lat : 13.0281;
+      const pLng = App.currentPickup ? App.currentPickup.lng : 80.0161;
+      const dLat = App.currentDropoff ? App.currentDropoff.lat : 13.0494;
+      const dLng = App.currentDropoff ? App.currentDropoff.lng : 80.0934;
 
       if (App.routeLine) {
         App.routeLine.setLatLngs([
