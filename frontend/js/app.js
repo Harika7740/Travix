@@ -76,27 +76,82 @@ const App = {
     }).addTo(this.map).bindPopup('⚠️ <b>Unsafe Zone Alert:</b> Central Metro Corridor');
   },
 
-  simulateRideAnimation() {
+  startUberRideSimulation(onProgressCallback, onCompleteCallback) {
     if (!this.driverMarker) return;
-    let step = 0;
-    const points = [
-      [37.7749, -122.4194],
-      [37.7760, -122.4190],
-      [37.7780, -122.4180],
-      [37.7800, -122.4172],
-      [37.7833, -122.4167]
-    ];
 
-    const interval = setInterval(() => {
-      step++;
-      if (step < points.length) {
-        this.driverMarker.setLatLng(points[step]);
-        this.map.panTo(points[step]);
-      } else {
-        clearInterval(interval);
-        App.showToast('Destination Reached! Trip completed safely.', 'success');
-      }
-    }, 1500);
+    // Step 1: SEARCHING_DRIVER
+    App.showToast('🔍 Searching for nearest verified female driver...', 'info');
+    if (onProgressCallback) onProgressCallback({ status: 'SEARCHING_DRIVER', message: 'Finding nearby verified drivers...' });
+
+    // Step 2: DRIVER_ASSIGNED (after 2 seconds)
+    setTimeout(() => {
+      App.showToast('✅ Driver Assigned: Ananya Sharma (Tata Nexon EV KA-01-EQ-4921)', 'success');
+      if (onProgressCallback) onProgressCallback({
+        status: 'DRIVER_ASSIGNED',
+        driverName: 'Ananya Sharma (Verified)',
+        vehicle: 'White Tata Nexon EV (KA-01-EQ-4921)',
+        eta: '3 mins',
+        distance: '4.8 km',
+        speed: '38 km/h'
+      });
+
+      // Move vehicle to pickup location
+      this.driverMarker.setLatLng([12.9716, 77.5946]);
+      this.map.panTo([12.9716, 77.5946]);
+
+      // Step 3: DRIVER_ARRIVED (after 4 seconds)
+      setTimeout(() => {
+        App.showToast('🚖 Driver arrived at MG Road, Bengaluru!', 'success');
+        if (onProgressCallback) onProgressCallback({
+          status: 'DRIVER_ARRIVED',
+          driverName: 'Ananya Sharma (Verified)',
+          vehicle: 'White Tata Nexon EV (KA-01-EQ-4921)',
+          eta: 'Arrived',
+          distance: '4.8 km',
+          speed: '0 km/h'
+        });
+
+        // Step 4: RIDE_STARTED & LIVE TRACKING (after 6 seconds)
+        setTimeout(() => {
+          App.showToast('🚀 Ride Started! Tracking live route to Indiranagar 100ft Road', 'success');
+
+          const routePoints = [
+            { lat: 12.9716, lng: 77.5946, distance: '4.8 km', eta: '12 mins', speed: '36 km/h' },
+            { lat: 12.9730, lng: 77.6000, distance: '4.1 km', eta: '10 mins', speed: '42 km/h' },
+            { lat: 12.9745, lng: 77.6100, distance: '3.3 km', eta: '8 mins', speed: '45 km/h' },
+            { lat: 12.9760, lng: 77.6200, distance: '2.4 km', eta: '5 mins', speed: '48 km/h' },
+            { lat: 12.9772, lng: 77.6310, distance: '1.2 km', eta: '3 mins', speed: '40 km/h' },
+            { lat: 12.9780, lng: 77.6400, distance: '0.0 km', eta: 'Arrived', speed: '0 km/h' }
+          ];
+
+          let pointIdx = 0;
+          const trackingInterval = setInterval(() => {
+            pointIdx++;
+            if (pointIdx < routePoints.length) {
+              const pt = routePoints[pointIdx];
+              this.driverMarker.setLatLng([pt.lat, pt.lng]);
+              this.map.panTo([pt.lat, pt.lng]);
+
+              if (onProgressCallback) onProgressCallback({
+                status: 'RIDE_STARTED',
+                driverName: 'Ananya Sharma (Verified)',
+                vehicle: 'White Tata Nexon EV (KA-01-EQ-4921)',
+                eta: pt.eta,
+                distance: pt.distance,
+                speed: pt.speed
+              });
+            } else {
+              clearInterval(trackingInterval);
+              App.showToast('🎉 Ride Completed! You have safely arrived at Indiranagar 100ft Road.', 'success');
+              if (onCompleteCallback) onCompleteCallback();
+            }
+          }, 2000);
+
+        }, 2000);
+
+      }, 2000);
+
+    }, 2000);
   },
 
   showToast(message, type = 'info') {

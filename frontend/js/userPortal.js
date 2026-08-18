@@ -315,13 +315,129 @@ const UserPortal = {
   },
 
   confirmRideRequest() {
-    App.showToast('Requesting ride... Matching verified driver', 'info');
-    setTimeout(() => {
-      App.showToast('Driver Assigned: Sarah Smith (Toyota Camry TRX-8899). Guardian link sent!', 'success');
-      if (App.map) {
-        App.simulateRideAnimation();
+    const bookingPanel = document.querySelector('.booking-control-card') || document.querySelector('.booking-panel');
+    if (!bookingPanel) return;
+
+    // Render Live Uber Tracking Dashboard in panel
+    bookingPanel.innerHTML = `
+      <div class="live-tracking-card" id="live-tracking-dashboard">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span class="badge badge-success" id="trip-status-badge"><i class="fa-solid fa-spinner fa-spin"></i> MATCHING DRIVER</span>
+          <span style="font-size:0.75rem; color:var(--text-muted); font-weight:600;" id="trip-id-badge">TRX-9982</span>
+        </div>
+
+        <div class="radar-pulse" id="radar-animation">
+          <i class="fa-solid fa-shield-halved" style="color:var(--primary); font-size:1.5rem;"></i>
+        </div>
+
+        <div class="driver-info-header" id="driver-card" style="display:none;">
+          <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=120&q=80" class="driver-avatar" alt="Driver Profile">
+          <div class="driver-details">
+            <h4 id="driver-name">Ananya Sharma (Verified)</h4>
+            <p id="driver-vehicle">White Tata Nexon EV (KA-01-EQ-4921)</p>
+            <div style="color:#f59e0b; font-size:0.8rem; margin-top:0.2rem;">
+              <i class="fa-solid fa-star"></i> 4.95 Rating • <span style="color:#10b981; font-weight:bold;">998 Trips</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="live-trip-metrics">
+          <div class="metric-pill">
+            <label>ESTIMATED ETA</label>
+            <span id="metric-eta">--</span>
+          </div>
+          <div class="metric-pill">
+            <label>DISTANCE</label>
+            <span id="metric-dist">4.8 km</span>
+          </div>
+          <div class="metric-pill">
+            <label>SPEED</label>
+            <span id="metric-speed">0 km/h</span>
+          </div>
+        </div>
+
+        <div style="background:rgba(16,185,129,0.1); border:1px solid #10b981; padding:0.75rem; border-radius:var(--radius-sm); font-size:0.8rem; color:#10b981; display:flex; align-items:center; gap:0.5rem;">
+          <i class="fa-solid fa-circle-dot fa-beat"></i>
+          <span><strong>GUARDIAN LIVE STREAM ACTIVE</strong> • Contacts notified</span>
+        </div>
+      </div>
+    `;
+
+    // Trigger full Uber ride simulation
+    App.startUberRideSimulation(
+      (progress) => {
+        const statusBadge = document.getElementById('trip-status-badge');
+        const radarAnim = document.getElementById('radar-animation');
+        const driverCard = document.getElementById('driver-card');
+        const etaEl = document.getElementById('metric-eta');
+        const distEl = document.getElementById('metric-dist');
+        const speedEl = document.getElementById('metric-speed');
+
+        if (progress.status === 'SEARCHING_DRIVER') {
+          if (statusBadge) statusBadge.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> FINDING DRIVER';
+        } else if (progress.status === 'DRIVER_ASSIGNED' || progress.status === 'DRIVER_ARRIVED' || progress.status === 'RIDE_STARTED') {
+          if (radarAnim) radarAnim.style.display = 'none';
+          if (driverCard) driverCard.style.display = 'flex';
+
+          if (statusBadge) {
+            let label = progress.status.replace('_', ' ');
+            statusBadge.innerHTML = `<i class="fa-solid fa-circle-check"></i> ${label}`;
+          }
+
+          if (etaEl) etaEl.innerText = progress.eta || '--';
+          if (distEl) distEl.innerText = progress.distance || '--';
+          if (speedEl) speedEl.innerText = progress.speed || '--';
+        }
+      },
+      () => {
+        // Complete callback: Show Uber Trip Completion Modal
+        UserPortal.showTripCompletionModal();
       }
-    }, 1500);
+    );
+  },
+
+  showTripCompletionModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div class="modal-content">
+        <div style="width:60px; height:60px; background:#dcfce7; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 1rem auto; color:#16a34a; font-size:2rem;">
+          <i class="fa-solid fa-circle-check"></i>
+        </div>
+        <h2 style="font-size:1.5rem; color:var(--text-main); margin-bottom:0.25rem;">You Have Arrived!</h2>
+        <p style="color:var(--text-muted); font-size:0.9rem;">Indiranagar 100ft Road, Bengaluru</p>
+
+        <div style="background:var(--dark-bg); border:1px solid var(--dark-border); padding:1rem; border-radius:var(--radius-sm); margin:1.25rem 0; text-align:left;">
+          <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;">
+            <span style="color:var(--text-muted);">Total Trip Fare:</span>
+            <strong style="font-size:1.25rem; color:#60a5fa;">₹240.00</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:0.8rem; color:var(--text-muted);">
+            <span>Distance Traveled: 4.8 km</span>
+            <span>Duration: 12 mins</span>
+          </div>
+        </div>
+
+        <p style="font-size:0.85rem; font-weight:600; color:var(--text-main);">Rate your experience with Ananya Sharma:</p>
+        <div class="star-rating">
+          <i class="fa-solid fa-star"></i>
+          <i class="fa-solid fa-star"></i>
+          <i class="fa-solid fa-star"></i>
+          <i class="fa-solid fa-star"></i>
+          <i class="fa-solid fa-star"></i>
+        </div>
+
+        <div style="display:flex; gap:0.75rem; margin-top:1.5rem;">
+          <button class="btn btn-secondary" onclick="UserPortal.downloadInvoice('TRX-9982', 'Ananya Sharma', '240.00', '2026-08-17')" style="flex:1;">
+            <i class="fa-solid fa-file-pdf"></i> Download PDF Receipt
+          </button>
+          <button class="btn btn-primary" onclick="document.querySelector('.modal-overlay').remove(); App.refresh();" style="flex:1;">
+            Done
+          </button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
   },
 
   downloadInvoice(id, driver, amount, date) {
