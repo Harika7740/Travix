@@ -1,0 +1,31 @@
+{
+  "name": "travix-backend",
+  "version": "1.0.0",
+  "description": "TRAVIX Ride-Hailing Platform Express REST API",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test"
+  },
+  "keywords": [
+    "travix",
+    "express",
+    "firebase",
+    "firestore",
+    "ride-hailing",
+    "sos"
+  ],
+  "author": "TRAVIX Team",
+  "license": "MIT",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.6",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.2",
+    "express-validator": "^7.3.2",
+    "firebase-admin": "^12.7.0",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.11.0"
+  }
+}

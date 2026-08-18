@@ -1,0 +1,26 @@
+{
+  "name": "travix-load-testing",
+  "version": "1.0.0",
+  "description": "Baseline & Load Testing Suite for TRAVIX Platform (100 Virtual Users, 1 Minute Duration, RPS & Latency Excel Reporting)",
+  "main": "runner.js",
+  "scripts": {
+    "test:load": "node runner.js"
+  },
+  "keywords": [
+    "load-testing",
+    "baseline-testing",
+    "concurrency",
+    "rps",
+    "response-time",
+    "excel-report",
+    "travix"
+  ],
+  "author": "TRAVIX Performance Engineering",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.19.0",
+    "dotenv": "^16.6.1",
+    "exceljs": "^4.4.0",
+    "jszip": "^3.10.1"
+  }
+}

@@ -1,0 +1,655 @@
+// TRAVIX Master Application Coordinator
+const App = {
+  currentPortal: 'user',
+  map: null,
+  driverMarker: null,
+  currentRidePin: '4921',
+
+  rideHistory: [
+    {
+      id: 'TRX-9982',
+      date: '2026-08-18 09:10',
+      passenger: 'Jane Doe',
+      driver: 'Ananya Sharma (Verified)',
+      pickup: 'Saveetha, Thandalam',
+      dropoff: 'Poonamallee Bus Stand, Chennai',
+      fare: '106.00',
+      vehicle: 'Uber Go Mini',
+      pin: '4921',
+      status: 'COMPLETED',
+      distance: '8.8 km'
+    },
+    {
+      id: 'TRX-8819',
+      date: '2026-08-18 08:30',
+      passenger: 'Jane Doe',
+      driver: 'Ananya Sharma (Verified)',
+      pickup: 'Saveetha, Thandalam',
+      dropoff: 'KG Centre Point, Thandalam',
+      fare: '50.00',
+      vehicle: 'Uber Auto',
+      pin: '8819',
+      status: 'COMPLETED',
+      distance: '2.1 km'
+    }
+  ],
+
+  init() {
+    this.loadRideHistory();
+    this.refresh();
+  },
+
+  saveRide(ride) {
+    this.rideHistory.unshift(ride);
+    try {
+      localStorage.setItem('travix_ride_history', JSON.stringify(this.rideHistory));
+      fetch('/api/v1/rides/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ride)
+      }).catch(err => console.warn('Sync API warning:', err));
+    } catch (e) {
+      console.warn('LocalStorage save warning:', e);
+    }
+  },
+
+  loadRideHistory() {
+    try {
+      const stored = localStorage.getItem('travix_ride_history');
+      if (stored) {
+        this.rideHistory = JSON.parse(stored);
+      }
+    } catch (e) {
+      console.warn('LocalStorage load warning:', e);
+    }
+  },
+
+  refresh() {
+    const sidebarEl = document.getElementById('app-sidebar');
+    const mainEl = document.getElementById('main-content');
+
+    if (this.currentPortal === 'user') {
+      sidebarEl.innerHTML = UserPortal.renderSidebar();
+      mainEl.innerHTML = UserPortal.renderContent();
+    } else if (this.currentPortal === 'driver') {
+      sidebarEl.innerHTML = DriverPortal.renderSidebar();
+      mainEl.innerHTML = DriverPortal.renderContent();
+    } else if (this.currentPortal === 'admin') {
+      sidebarEl.innerHTML = AdminPortal.renderSidebar();
+      mainEl.innerHTML = AdminPortal.renderContent();
+    }
+
+    // Initialize Map if map element is present in DOM
+    setTimeout(() => {
+      this.initMap();
+    }, 100);
+  },
+
+  initMap() {
+    const mapContainer = document.getElementById('map');
+    if (!mapContainer) return;
+
+    // Destroy existing instance if present
+    if (this.map) {
+      this.map.remove();
+      this.map = null;
+    }
+
+    // Bengaluru MG Road default coordinates
+    const indiaCenter = [12.9716, 77.5946];
+    this.map = L.map('map').setView(indiaCenter, 14);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap & TRAVIX Safety Grid'
+    }).addTo(this.map);
+
+    // Custom Visual Pins (Pickup & Dropoff)
+    const pickupPinIcon = L.divIcon({
+      className: 'custom-pickup-pin',
+      html: `<div style="background:#2563eb; color:white; width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 0 14px rgba(37,99,235,0.8); border:2px solid white;"><i class="fa-solid fa-location-dot" style="font-size:1.1rem;"></i></div>`,
+      iconSize: [34, 34]
+    });
+
+    const dropoffPinIcon = L.divIcon({
+      className: 'custom-dropoff-pin',
+      html: `<div style="background:#ef4444; color:white; width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 0 14px rgba(239,68,68,0.8); border:2px solid white;"><i class="fa-solid fa-flag-checkered" style="font-size:1.1rem;"></i></div>`,
+      iconSize: [34, 34]
+    });
+
+    this.pickupMarker = L.marker([13.0280, 80.0170], { icon: pickupPinIcon }).addTo(this.map).bindPopup('<b>📍 Pickup Pin:</b> Saveetha, Chennai').openPopup();
+    this.dropoffMarker = L.marker([13.0210, 80.0050], { icon: dropoffPinIcon, draggable: true }).addTo(this.map).bindPopup('<b>🏁 Dropoff Pin:</b> KG Centre Point');
+
+    // Drag Listener on Dropoff Pin
+    this.dropoffMarker.on('dragend', (e) => {
+      const pos = e.target.getLatLng();
+      const dropLabel = `Map Pin (${pos.lat.toFixed(4)}, ${pos.lng.toFixed(4)})`;
+
+      App.currentDropoff = { lat: pos.lat, lng: pos.lng, address: dropLabel };
+
+      const dropInput = document.getElementById('dropoff-input');
+      if (dropInput) dropInput.value = dropLabel;
+
+      const pPos = this.pickupMarker ? this.pickupMarker.getLatLng() : { lat: 13.0280, lng: 80.0170 };
+      if (this.routeLine) {
+        this.routeLine.setLatLngs([
+          [pPos.lat, pPos.lng],
+          [(pPos.lat + pos.lat) / 2, (pPos.lng + pos.lng) / 2],
+          [pos.lat, pos.lng]
+        ]);
+      }
+
+      const R = 6371;
+      const dLatRad = (pos.lat - pPos.lat) * Math.PI / 180;
+      const dLngRad = (pos.lng - pPos.lng) * Math.PI / 180;
+      const a = Math.sin(dLatRad / 2) * Math.sin(dLatRad / 2) +
+                Math.cos(pPos.lat * Math.PI / 180) * Math.cos(pos.lat * Math.PI / 180) *
+                Math.sin(dLngRad / 2) * Math.sin(dLngRad / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const distKm = Math.max(0.8, Math.round(R * c * 10) / 10);
+
+      App.updateFaresForDistance(distKm);
+      App.showToast(`🎯 Dropoff Pin moved on map (${distKm} km)! Fares updated.`, 'success');
+    });
+
+    // Route line
+    this.routeLine = L.polyline([
+      [13.0280, 80.0170],
+      [13.0250, 80.0110],
+      [13.0210, 80.0050]
+    ], { color: '#2563eb', weight: 5, opacity: 0.8 }).addTo(this.map);
+
+    // Map Click Listener to select custom dropoff location anywhere on the map
+    this.map.on('click', (e) => {
+      const lat = e.latlng.lat;
+      const lng = e.latlng.lng;
+      const dropLabel = `Map Pin (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+
+      App.currentDropoff = { lat, lng, address: dropLabel };
+
+      // Move dropoff marker
+      if (this.dropoffMarker) {
+        this.dropoffMarker.setLatLng([lat, lng]).bindPopup(`<b>📍 Selected Dropoff:</b> ${dropLabel}`).openPopup();
+      }
+
+      // Update input field
+      const dropInput = document.getElementById('dropoff-input');
+      if (dropInput) dropInput.value = dropLabel;
+
+      // Update polyline route
+      const pPos = this.pickupMarker ? this.pickupMarker.getLatLng() : { lat: 13.0280, lng: 80.0170 };
+      this.routeLine.setLatLngs([
+        [pPos.lat, pPos.lng],
+        [(pPos.lat + lat) / 2, (pPos.lng + lng) / 2],
+        [lat, lng]
+      ]);
+
+      // Calculate distance (Haversine formula in km)
+      const R = 6371;
+      const dLat = (lat - pPos.lat) * Math.PI / 180;
+      const dLng = (lng - pPos.lng) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(pPos.lat * Math.PI / 180) * Math.cos(lat * Math.PI / 180) *
+                Math.sin(dLng / 2) * Math.sin(dLng / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const distKm = Math.max(0.8, Math.round(R * c * 10) / 10);
+
+      App.updateFaresForDistance(distKm);
+      App.showToast(`🎯 Dropoff Location set on map (${distKm} km)! Fares updated.`, 'success');
+    });
+
+    // Automatically detect live location on load
+    this.detectLiveLocation();
+
+    // Driver vehicle marker
+    const carIcon = L.divIcon({
+      className: 'custom-car-icon',
+      html: `<div style="background:#ec4899; color:white; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 0 12px rgba(236,72,153,0.8);"><i class="fa-solid fa-car"></i></div>`,
+      iconSize: [32, 32]
+    });
+    this.driverMarker = L.marker([13.0260, 80.0150], { icon: carIcon }).addTo(this.map).bindPopup('<b>Driver Ananya Sharma</b><br>White Tata Nexon EV (KA-01-EQ-4921)');
+
+    // Unsafe Zone Circle
+    L.circle([13.0300, 80.0200], {
+      color: '#ef4444',
+      fillColor: '#f87171',
+      fillOpacity: 0.25,
+      radius: 400
+    }).addTo(this.map).bindPopup('⚠️ <b>Unsafe Zone Alert:</b> Industrial Corridor');
+  },
+
+  async geocodeInputAddress(addressText, isPickup = false) {
+    if (!addressText || addressText.trim().length < 2) return;
+    App.showToast(`🔍 Searching local map for "${addressText}"...`, 'info');
+
+    try {
+      const cleanAddress = addressText.trim();
+      const pRefLat = App.currentPickup ? App.currentPickup.lat : 13.0280;
+      const pRefLng = App.currentPickup ? App.currentPickup.lng : 80.0170;
+
+      let lat = null;
+      let lng = null;
+      let displayName = cleanAddress;
+
+      // 1. First try bounded search around reference pickup location (within 25 km)
+      const viewBox = `${pRefLng - 0.25},${pRefLat + 0.25},${pRefLng + 0.25},${pRefLat - 0.25}`;
+      const searchUrl = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=in&viewbox=${viewBox}&q=${encodeURIComponent(cleanAddress)}`;
+      const response = await fetch(searchUrl);
+      const results = await response.json();
+
+      if (results && results.length > 0) {
+        // Pick result closest to current pickup reference location
+        let minDist = Infinity;
+        results.forEach(res => {
+          const rLat = parseFloat(res.lat);
+          const rLng = parseFloat(res.lon);
+          const d = Math.hypot(rLat - pRefLat, rLng - pRefLng);
+          if (d < minDist) {
+            minDist = d;
+            lat = rLat;
+            lng = rLng;
+            displayName = res.display_name.split(',')[0] || cleanAddress;
+          }
+        });
+      }
+
+      // If bounded search returned no results or result is too far (> 30km), use local relative offset near pickup
+      if (!lat || !lng || Math.hypot(lat - pRefLat, lng - pRefLng) > 0.3) {
+        const hash = Array.from(cleanAddress).reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        const offsetLat = -0.007 - ((hash % 10) * 0.001);
+        const offsetLng = -0.012 - ((hash % 8) * 0.001);
+
+        lat = isPickup ? pRefLat : pRefLat + offsetLat;
+        lng = isPickup ? pRefLng : pRefLng + offsetLng;
+      }
+
+      if (isPickup) {
+        App.currentPickup = { lat, lng, address: cleanAddress };
+        if (App.pickupMarker) {
+          App.pickupMarker.setLatLng([lat, lng]).bindPopup(`<b>📍 Pickup Pin:</b> ${displayName}`).openPopup();
+        }
+      } else {
+        App.currentDropoff = { lat, lng, address: cleanAddress };
+        if (App.dropoffMarker) {
+          App.dropoffMarker.setLatLng([lat, lng]).bindPopup(`<b>🏁 Dropoff Pin:</b> ${displayName}`).openPopup();
+        }
+      }
+
+      // Update polyline route
+      const pLat = App.currentPickup ? App.currentPickup.lat : 13.0280;
+      const pLng = App.currentPickup ? App.currentPickup.lng : 80.0170;
+      const dLat = App.currentDropoff ? App.currentDropoff.lat : 13.0210;
+      const dLng = App.currentDropoff ? App.currentDropoff.lng : 80.0050;
+
+      if (App.routeLine) {
+        App.routeLine.setLatLngs([
+          [pLat, pLng],
+          [(pLat + dLat) / 2, (pLng + dLng) / 2],
+          [dLat, dLng]
+        ]);
+      }
+
+      if (App.map) {
+        App.map.fitBounds([[pLat, pLng], [dLat, dLng]], { padding: [60, 60] });
+      }
+
+      // Calculate exact Haversine distance in km
+      const R = 6371;
+      const dLatRad = (dLat - pLat) * Math.PI / 180;
+      const dLngRad = (dLng - pLng) * Math.PI / 180;
+      const a = Math.sin(dLatRad / 2) * Math.sin(dLatRad / 2) +
+                Math.cos(pLat * Math.PI / 180) * Math.cos(dLat * Math.PI / 180) *
+                Math.sin(dLngRad / 2) * Math.sin(dLngRad / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const distKm = Math.max(0.8, Math.round(R * c * 10) / 10);
+
+      // Recalculate dynamic fares for all vehicle categories
+      App.updateFaresForDistance(distKm);
+      App.showToast(`🎯 Dropoff Pin set to "${displayName}" (${distKm} km)! Estimated fares updated.`, 'success');
+
+    } catch (err) {
+      console.warn('Geocoding error:', err);
+    }
+  },
+
+  startUberRideSimulation(onProgressCallback, onCompleteCallback) {
+    if (!this.driverMarker) return;
+
+    const pLat = App.currentPickup ? App.currentPickup.lat : 12.9716;
+    const pLng = App.currentPickup ? App.currentPickup.lng : 77.5946;
+    const pAddr = App.currentPickup ? App.currentPickup.address : 'Pickup Location';
+
+    const dLat = App.currentDropoff ? App.currentDropoff.lat : 12.9780;
+    const dLng = App.currentDropoff ? App.currentDropoff.lng : 77.6400;
+    const dAddr = App.currentDropoff ? App.currentDropoff.address : 'Dropoff Destination';
+
+    // Calculate total distance & ETA
+    const R = 6371;
+    const dLatRad = (dLat - pLat) * Math.PI / 180;
+    const dLngRad = (dLng - pLng) * Math.PI / 180;
+    const a = Math.sin(dLatRad / 2) * Math.sin(dLatRad / 2) +
+              Math.cos(pLat * Math.PI / 180) * Math.cos(dLat * Math.PI / 180) *
+              Math.sin(dLngRad / 2) * Math.sin(dLngRad / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const totalDistKm = Math.max(1.2, Math.round(R * c * 10) / 10);
+    const totalEtaMins = Math.max(3, Math.round(totalDistKm * 2.5));
+
+    const ridePin = Math.floor(1000 + Math.random() * 9000);
+    App.currentRidePin = ridePin;
+
+    // Step 1: SEARCHING_DRIVER
+    App.showToast(`🔍 Searching for nearest verified driver near ${pAddr}...`, 'info');
+    if (onProgressCallback) onProgressCallback({ status: 'SEARCHING_DRIVER', message: 'Finding nearby verified drivers...' });
+
+    // Step 2: DRIVER_ASSIGNED (after 2 seconds)
+    setTimeout(() => {
+      App.showToast(`✅ Driver Assigned: Ananya Sharma | 🔑 RIDE PIN: ${ridePin}`, 'success');
+      if (onProgressCallback) onProgressCallback({
+        status: 'DRIVER_ASSIGNED',
+        driverName: 'Ananya Sharma (Verified)',
+        vehicle: 'White Tata Nexon EV (KA-01-EQ-4921)',
+        eta: '3 mins',
+        distance: `${totalDistKm} km`,
+        speed: '38 km/h',
+        ridePin: ridePin
+      });
+
+      // Move vehicle to dynamic pickup location
+      this.driverMarker.setLatLng([pLat, pLng]);
+      this.map.panTo([pLat, pLng]);
+
+      // Step 3: DRIVER_ARRIVED (after 4 seconds)
+      setTimeout(() => {
+        App.showToast(`🚖 Driver arrived at ${pAddr}! 🔑 Show PIN ${ridePin} to driver.`, 'success');
+        if (onProgressCallback) onProgressCallback({
+          status: 'DRIVER_ARRIVED',
+          driverName: 'Ananya Sharma (Verified)',
+          vehicle: 'White Tata Nexon EV (KA-01-EQ-4921)',
+          eta: 'Arrived',
+          distance: `${totalDistKm} km`,
+          speed: '0 km/h',
+          ridePin: ridePin
+        });
+
+        // Step 4: RIDE_STARTED & LIVE DYNAMIC TRACKING (after 6 seconds)
+        setTimeout(() => {
+          App.showToast(`🚀 Ride Started! Tracking live route to ${dAddr}`, 'success');
+
+          // Generate 6 dynamic waypoint steps from Pickup to Dropoff
+          const routePoints = [];
+          const totalSteps = 5;
+          for (let i = 0; i <= totalSteps; i++) {
+            const ratio = i / totalSteps;
+            const lat = pLat + (dLat - pLat) * ratio;
+            const lng = pLng + (dLng - pLng) * ratio;
+            const remDist = Math.max(0, Math.round((totalDistKm * (1 - ratio)) * 10) / 10);
+            const remEta = Math.max(0, Math.round(totalEtaMins * (1 - ratio)));
+            routePoints.push({
+              lat, lng,
+              distance: `${remDist} km`,
+              eta: remDist === 0 ? 'Arrived' : `${remEta} mins`,
+              speed: i === 0 || i === totalSteps ? '0 km/h' : `${Math.floor(35 + Math.random() * 15)} km/h`
+            });
+          }
+
+          let pointIdx = 0;
+          const trackingInterval = setInterval(() => {
+            pointIdx++;
+            if (pointIdx < routePoints.length) {
+              const pt = routePoints[pointIdx];
+              this.driverMarker.setLatLng([pt.lat, pt.lng]);
+              this.map.panTo([pt.lat, pt.lng]);
+
+              if (onProgressCallback) onProgressCallback({
+                status: 'RIDE_STARTED',
+                driverName: 'Ananya Sharma (Verified)',
+                vehicle: 'White Tata Nexon EV (KA-01-EQ-4921)',
+                eta: pt.eta,
+                distance: pt.distance,
+                speed: pt.speed
+              });
+            } else {
+              clearInterval(trackingInterval);
+              App.showToast(`🎉 Ride Completed! You have safely arrived at ${dAddr}.`, 'success');
+              if (onCompleteCallback) onCompleteCallback(totalDistKm);
+            }
+          }, 2000);
+
+        }, 2000);
+
+      }, 2000);
+
+    }, 2000);
+  },
+
+  showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    
+    let iconClass = 'fa-circle-info';
+    let borderColor = 'var(--primary)';
+    if (type === 'success') { iconClass = 'fa-circle-check'; borderColor = 'var(--success)'; }
+    if (type === 'warning') { iconClass = 'fa-triangle-exclamation'; borderColor = 'var(--warning)'; }
+    if (type === 'error') { iconClass = 'fa-circle-xmark'; borderColor = 'var(--danger)'; }
+
+    toast.style.borderLeftColor = borderColor;
+    toast.innerHTML = `<i class="fa-solid ${iconClass}" style="color:${borderColor}; font-size:1.25rem;"></i> <span>${message}</span>`;
+    
+    container.appendChild(toast);
+    setTimeout(() => {
+      toast.remove();
+    }, 4000);
+  },
+
+  detectLiveLocation() {
+    if (!navigator.geolocation) {
+      App.showToast('Geolocation API not supported by browser; using default location.', 'warning');
+      return;
+    }
+
+    App.showToast('📍 Detecting your live GPS location...', 'info');
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        const liveAddress = `Live GPS: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+
+        App.currentPickup = { lat, lng, address: liveAddress };
+
+        // Update pickup input field if present
+        const pickupInput = document.getElementById('pickup-input');
+        if (pickupInput) pickupInput.value = liveAddress;
+
+        // Pan map and update pickup marker
+        if (App.map) {
+          App.map.setView([lat, lng], 15);
+          if (App.pickupMarker) {
+            App.pickupMarker.setLatLng([lat, lng]).bindPopup(`<b>📍 Live Pickup:</b> ${liveAddress}`).openPopup();
+          }
+        }
+
+        App.showToast(`📍 Live Location Detected: ${lat.toFixed(4)}, ${lng.toFixed(4)}`, 'success');
+      },
+      (error) => {
+        console.warn('Geolocation error:', error);
+        App.showToast('📍 GPS Permission Pending; defaulted to Bengaluru MG Road.', 'info');
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+    );
+  },
+
+  updateFaresForDistance(distKm) {
+    const autoFare = Math.max(40, Math.round(distKm * 15));
+    const miniFare = Math.max(70, Math.round(distKm * 24));
+    const premierFare = Math.max(120, Math.round(distKm * 38));
+    const xlFare = Math.max(180, Math.round(distKm * 55));
+
+    const autoEta = Math.max(2, Math.round(distKm * 1.2));
+    const miniEta = Math.max(2, Math.round(distKm * 1.1));
+    const premierEta = Math.max(3, Math.round(distKm * 1.5));
+    const xlEta = Math.max(4, Math.round(distKm * 1.8));
+
+    const cards = document.querySelectorAll('.vehicle-card');
+    if (cards.length >= 4) {
+      cards[0].querySelector('.vehicle-price').innerText = `₹${autoFare}.00`;
+      cards[0].querySelector('.vehicle-eta').innerText = `${autoEta} mins away`;
+      cards[0].setAttribute('onclick', `UserPortal.selectVehicle(this, 'Uber Auto', '${autoFare}.00')`);
+
+      cards[1].querySelector('.vehicle-price').innerText = `₹${miniFare}.00`;
+      cards[1].querySelector('.vehicle-eta').innerText = `${miniEta} mins away`;
+      cards[1].setAttribute('onclick', `UserPortal.selectVehicle(this, 'Uber Go Mini', '${miniFare}.00')`);
+
+      cards[2].querySelector('.vehicle-price').innerText = `₹${premierFare}.00`;
+      cards[2].querySelector('.vehicle-eta').innerText = `${premierEta} mins away`;
+      cards[2].setAttribute('onclick', `UserPortal.selectVehicle(this, 'TRAVIX Women Safe Premier', '${premierFare}.00')`);
+
+      cards[3].querySelector('.vehicle-price').innerText = `₹${xlFare}.00`;
+      cards[3].querySelector('.vehicle-eta').innerText = `${xlEta} mins away`;
+      cards[3].setAttribute('onclick', `UserPortal.selectVehicle(this, 'Uber Premier XL', '${xlFare}.00')`);
+    }
+  },
+
+  async geocodeInputAddress(addressText, isPickup = false) {
+    if (!addressText || addressText.trim().length < 2) return;
+    App.showToast(`🔍 Calculating fares for "${addressText}"...`, 'info');
+
+    try {
+      let cleanAddress = addressText.trim().toLowerCase();
+
+      // Auto-correct common typos
+      cleanAddress = cleanAddress.replace(/\btsand\b/g, 'stand')
+                                 .replace(/\bbus tsand\b/g, 'bus stand')
+                                 .replace(/\bcentr\b/g, 'centre');
+
+      // 1. Instant Known Landmark Database (Chennai / Tamil Nadu / India)
+      const landmarkDb = [
+        { keys: ['poonamallee bus stand', 'poonamalle bus stand', 'poonamalle bus tsand', 'poonamallee bus terminus'], lat: 13.0494, lng: 80.0934, name: 'Poonamallee Bus Terminus, Chennai' },
+        { keys: ['poonamallee', 'poonamalle', 'poonamallee bypass'], lat: 13.0480, lng: 80.0950, name: 'Poonamallee, Chennai' },
+        { keys: ['saveetha', 'saveetha engineering college', 'saveetha university'], lat: 13.0281, lng: 80.0161, name: 'Saveetha Engineering College, Thandalam' },
+        { keys: ['thandalam'], lat: 13.0281, lng: 80.0161, name: 'Thandalam, Chennai' },
+        { keys: ['kg center point', 'kg centre point', 'kg center', 'kg centre'], lat: 13.0210, lng: 80.0050, name: 'KG Centre Point, Thandalam' },
+        { keys: ['porur', 'porur junction', 'porur roundtana'], lat: 13.0382, lng: 80.1565, name: 'Porur Junction, Chennai' },
+        { keys: ['t nagar', 'thyagaraya nagar'], lat: 13.0418, lng: 80.2341, name: 'T. Nagar, Chennai' },
+        { keys: ['chennai central', 'central railway station'], lat: 13.0827, lng: 80.2707, name: 'Chennai Central Railway Station' },
+        { keys: ['chennai airport', 'meenambakkam airport'], lat: 12.9941, lng: 80.1709, name: 'Chennai International Airport' },
+        { keys: ['velachery', 'velachery main road'], lat: 12.9759, lng: 80.2212, name: 'Velachery, Chennai' },
+        { keys: ['guindy', 'guindy race course'], lat: 13.0067, lng: 80.2020, name: 'Guindy, Chennai' },
+        { keys: ['sriperumbudur', 'sriperumbudur bus stand'], lat: 12.9683, lng: 79.9497, name: 'Sriperumbudur, Tamil Nadu' },
+        { keys: ['indiranagar', 'indiranagar 100ft road'], lat: 12.9780, lng: 77.6400, name: 'Indiranagar 100ft Road, Bengaluru' },
+        { keys: ['mg road', 'mg road bengaluru'], lat: 12.9716, lng: 77.5946, name: 'MG Road, Bengaluru' }
+      ];
+
+      let lat = null;
+      let lng = null;
+      let displayName = addressText.trim();
+
+      // Check landmark dictionary matches first
+      const matchedLandmark = landmarkDb.find(item => 
+        item.keys.some(k => cleanAddress.includes(k) || k.includes(cleanAddress))
+      );
+
+      if (matchedLandmark) {
+        lat = matchedLandmark.lat;
+        lng = matchedLandmark.lng;
+        displayName = matchedLandmark.name;
+      } else {
+        // 2. Query OpenStreetMap Nominatim API with sanitized query
+        const pRefLat = App.currentPickup ? App.currentPickup.lat : 13.0281;
+        const pRefLng = App.currentPickup ? App.currentPickup.lng : 80.0161;
+
+        const queryStr = `${cleanAddress}, Tamil Nadu, India`;
+        const searchUrl = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=in&q=${encodeURIComponent(queryStr)}`;
+        const response = await fetch(searchUrl);
+        const results = await response.json();
+
+        if (results && results.length > 0) {
+          lat = parseFloat(results[0].lat);
+          lng = parseFloat(results[0].lon);
+          displayName = results[0].display_name.split(',')[0] || addressText;
+        } else {
+          // Dynamic offset near reference pickup
+          const hash = Array.from(cleanAddress).reduce((acc, char) => acc + char.charCodeAt(0), 0);
+          const offsetLat = 0.02 + ((hash % 15) * 0.002);
+          const offsetLng = 0.03 + ((hash % 12) * 0.002);
+
+          lat = isPickup ? pRefLat : pRefLat + offsetLat;
+          lng = isPickup ? pRefLng : pRefLng + offsetLng;
+        }
+      }
+
+      if (isPickup) {
+        App.currentPickup = { lat, lng, address: displayName };
+        if (App.pickupMarker) {
+          App.pickupMarker.setLatLng([lat, lng]).bindPopup(`<b>📍 Pickup Pin:</b> ${displayName}`).openPopup();
+        }
+      } else {
+        App.currentDropoff = { lat, lng, address: displayName };
+        if (App.dropoffMarker) {
+          App.dropoffMarker.setLatLng([lat, lng]).bindPopup(`<b>🏁 Dropoff Pin:</b> ${displayName}`).openPopup();
+        }
+      }
+
+      // Update polyline route
+      const pLat = App.currentPickup ? App.currentPickup.lat : 13.0281;
+      const pLng = App.currentPickup ? App.currentPickup.lng : 80.0161;
+      const dLat = App.currentDropoff ? App.currentDropoff.lat : 13.0494;
+      const dLng = App.currentDropoff ? App.currentDropoff.lng : 80.0934;
+
+      if (App.routeLine) {
+        App.routeLine.setLatLngs([
+          [pLat, pLng],
+          [(pLat + dLat) / 2, (pLng + dLng) / 2],
+          [dLat, dLng]
+        ]);
+      }
+
+      if (App.map) {
+        App.map.fitBounds([[pLat, pLng], [dLat, dLng]], { padding: [60, 60] });
+      }
+
+      // Calculate exact Haversine distance in km
+      const R = 6371;
+      const dLatRad = (dLat - pLat) * Math.PI / 180;
+      const dLngRad = (dLng - pLng) * Math.PI / 180;
+      const a = Math.sin(dLatRad / 2) * Math.sin(dLatRad / 2) +
+                Math.cos(pLat * Math.PI / 180) * Math.cos(dLat * Math.PI / 180) *
+                Math.sin(dLngRad / 2) * Math.sin(dLngRad / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const distKm = Math.max(0.8, Math.round(R * c * 10) / 10);
+
+      // Recalculate dynamic fares for all vehicle categories
+      App.updateFaresForDistance(distKm);
+      App.showToast(`🎯 Location set: "${displayName}" (${distKm} km)! Estimated fares updated.`, 'success');
+
+    } catch (err) {
+      console.warn('Geocoding error:', err);
+    }
+  }
+};
+
+function switchPortal(portal) {
+  App.currentPortal = portal;
+
+  document.querySelectorAll('.portal-btn').forEach(btn => btn.classList.remove('active'));
+  document.getElementById(`btn-portal-${portal}`).classList.add('active');
+
+  const nameEl = document.getElementById('header-user-name');
+  if (portal === 'user') nameEl.innerText = 'Jane Doe (Passenger)';
+  if (portal === 'driver') nameEl.innerText = 'Sarah Smith (Driver)';
+  if (portal === 'admin') nameEl.innerText = 'Admin Command Center';
+
+  App.refresh();
+}
+
+function triggerGlobalSOS() {
+  App.showToast('🚨 CRITICAL VOICE SOS ACTIVATED! Location broadcast to Emergency Contacts & Admin Command.', 'error');
+}
+
+// Global bootstrap
+document.addEventListener('DOMContentLoaded', () => {
+  App.init();
+});
