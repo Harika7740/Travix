@@ -177,6 +177,8 @@ const App = {
     setTimeout(() => {
       toast.remove();
     }, 4000);
+  },
+
   detectLiveLocation() {
     if (!navigator.geolocation) {
       App.showToast('Geolocation API not supported by browser; using default location.', 'warning');
