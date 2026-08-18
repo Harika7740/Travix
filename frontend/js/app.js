@@ -61,21 +61,53 @@ const App = {
       iconSize: [34, 34]
     });
 
-    this.pickupMarker = L.marker([12.9716, 77.5946], { icon: pickupPinIcon }).addTo(this.map).bindPopup('<b>📍 Pickup Pin:</b> MG Road, Bengaluru').openPopup();
-    this.dropoffMarker = L.marker([12.9780, 77.6400], { icon: dropoffPinIcon }).addTo(this.map).bindPopup('<b>🏁 Dropoff Pin:</b> Indiranagar 100ft Road');
+    this.pickupMarker = L.marker([13.0280, 80.0170], { icon: pickupPinIcon }).addTo(this.map).bindPopup('<b>📍 Pickup Pin:</b> Saveetha, Chennai').openPopup();
+    this.dropoffMarker = L.marker([13.0210, 80.0050], { icon: dropoffPinIcon, draggable: true }).addTo(this.map).bindPopup('<b>🏁 Dropoff Pin:</b> KG Centre Point');
+
+    // Drag Listener on Dropoff Pin
+    this.dropoffMarker.on('dragend', (e) => {
+      const pos = e.target.getLatLng();
+      const dropLabel = `Map Pin (${pos.lat.toFixed(4)}, ${pos.lng.toFixed(4)})`;
+
+      App.currentDropoff = { lat: pos.lat, lng: pos.lng, address: dropLabel };
+
+      const dropInput = document.getElementById('dropoff-input');
+      if (dropInput) dropInput.value = dropLabel;
+
+      const pPos = this.pickupMarker ? this.pickupMarker.getLatLng() : { lat: 13.0280, lng: 80.0170 };
+      if (this.routeLine) {
+        this.routeLine.setLatLngs([
+          [pPos.lat, pPos.lng],
+          [(pPos.lat + pos.lat) / 2, (pPos.lng + pos.lng) / 2],
+          [pos.lat, pos.lng]
+        ]);
+      }
+
+      const R = 6371;
+      const dLatRad = (pos.lat - pPos.lat) * Math.PI / 180;
+      const dLngRad = (pos.lng - pPos.lng) * Math.PI / 180;
+      const a = Math.sin(dLatRad / 2) * Math.sin(dLatRad / 2) +
+                Math.cos(pPos.lat * Math.PI / 180) * Math.cos(pos.lat * Math.PI / 180) *
+                Math.sin(dLngRad / 2) * Math.sin(dLngRad / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const distKm = Math.max(0.8, Math.round(R * c * 10) / 10);
+
+      App.updateFaresForDistance(distKm);
+      App.showToast(`🎯 Dropoff Pin moved on map (${distKm} km)! Fares updated.`, 'success');
+    });
 
     // Route line
     this.routeLine = L.polyline([
-      [12.9716, 77.5946],
-      [12.9750, 77.6100],
-      [12.9780, 77.6400]
+      [13.0280, 80.0170],
+      [13.0250, 80.0110],
+      [13.0210, 80.0050]
     ], { color: '#2563eb', weight: 5, opacity: 0.8 }).addTo(this.map);
 
     // Map Click Listener to select custom dropoff location anywhere on the map
     this.map.on('click', (e) => {
       const lat = e.latlng.lat;
       const lng = e.latlng.lng;
-      const dropLabel = `Map Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+      const dropLabel = `Map Pin (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
 
       App.currentDropoff = { lat, lng, address: dropLabel };
 
@@ -89,7 +121,7 @@ const App = {
       if (dropInput) dropInput.value = dropLabel;
 
       // Update polyline route
-      const pPos = this.pickupMarker ? this.pickupMarker.getLatLng() : { lat: 12.9716, lng: 77.5946 };
+      const pPos = this.pickupMarker ? this.pickupMarker.getLatLng() : { lat: 13.0280, lng: 80.0170 };
       this.routeLine.setLatLngs([
         [pPos.lat, pPos.lng],
         [(pPos.lat + lat) / 2, (pPos.lng + lng) / 2],
@@ -104,7 +136,7 @@ const App = {
                 Math.cos(pPos.lat * Math.PI / 180) * Math.cos(lat * Math.PI / 180) *
                 Math.sin(dLng / 2) * Math.sin(dLng / 2);
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      const distKm = Math.max(1.2, Math.round(R * c * 10) / 10);
+      const distKm = Math.max(0.8, Math.round(R * c * 10) / 10);
 
       App.updateFaresForDistance(distKm);
       App.showToast(`🎯 Dropoff Location set on map (${distKm} km)! Fares updated.`, 'success');
@@ -119,15 +151,109 @@ const App = {
       html: `<div style="background:#ec4899; color:white; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 0 12px rgba(236,72,153,0.8);"><i class="fa-solid fa-car"></i></div>`,
       iconSize: [32, 32]
     });
-    this.driverMarker = L.marker([12.9725, 77.5980], { icon: carIcon }).addTo(this.map).bindPopup('<b>Driver Ananya Sharma</b><br>White Tata Nexon EV (KA-01-EQ-4921)');
+    this.driverMarker = L.marker([13.0260, 80.0150], { icon: carIcon }).addTo(this.map).bindPopup('<b>Driver Ananya Sharma</b><br>White Tata Nexon EV (KA-01-EQ-4921)');
 
     // Unsafe Zone Circle
-    L.circle([12.9810, 77.6080], {
+    L.circle([13.0300, 80.0200], {
       color: '#ef4444',
       fillColor: '#f87171',
       fillOpacity: 0.25,
       radius: 400
-    }).addTo(this.map).bindPopup('⚠️ <b>Unsafe Zone Alert:</b> Central Metro Corridor');
+    }).addTo(this.map).bindPopup('⚠️ <b>Unsafe Zone Alert:</b> Industrial Corridor');
+  },
+
+  async geocodeInputAddress(addressText, isPickup = false) {
+    if (!addressText || addressText.trim().length < 2) return;
+    App.showToast(`🔍 Searching local map for "${addressText}"...`, 'info');
+
+    try {
+      const cleanAddress = addressText.trim();
+      const pRefLat = App.currentPickup ? App.currentPickup.lat : 13.0280;
+      const pRefLng = App.currentPickup ? App.currentPickup.lng : 80.0170;
+
+      let lat = null;
+      let lng = null;
+      let displayName = cleanAddress;
+
+      // 1. First try bounded search around reference pickup location (within 25 km)
+      const viewBox = `${pRefLng - 0.25},${pRefLat + 0.25},${pRefLng + 0.25},${pRefLat - 0.25}`;
+      const searchUrl = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=in&viewbox=${viewBox}&q=${encodeURIComponent(cleanAddress)}`;
+      const response = await fetch(searchUrl);
+      const results = await response.json();
+
+      if (results && results.length > 0) {
+        // Pick result closest to current pickup reference location
+        let minDist = Infinity;
+        results.forEach(res => {
+          const rLat = parseFloat(res.lat);
+          const rLng = parseFloat(res.lon);
+          const d = Math.hypot(rLat - pRefLat, rLng - pRefLng);
+          if (d < minDist) {
+            minDist = d;
+            lat = rLat;
+            lng = rLng;
+            displayName = res.display_name.split(',')[0] || cleanAddress;
+          }
+        });
+      }
+
+      // If bounded search returned no results or result is too far (> 30km), use local relative offset near pickup
+      if (!lat || !lng || Math.hypot(lat - pRefLat, lng - pRefLng) > 0.3) {
+        const hash = Array.from(cleanAddress).reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        const offsetLat = -0.007 - ((hash % 10) * 0.001);
+        const offsetLng = -0.012 - ((hash % 8) * 0.001);
+
+        lat = isPickup ? pRefLat : pRefLat + offsetLat;
+        lng = isPickup ? pRefLng : pRefLng + offsetLng;
+      }
+
+      if (isPickup) {
+        App.currentPickup = { lat, lng, address: cleanAddress };
+        if (App.pickupMarker) {
+          App.pickupMarker.setLatLng([lat, lng]).bindPopup(`<b>📍 Pickup Pin:</b> ${displayName}`).openPopup();
+        }
+      } else {
+        App.currentDropoff = { lat, lng, address: cleanAddress };
+        if (App.dropoffMarker) {
+          App.dropoffMarker.setLatLng([lat, lng]).bindPopup(`<b>🏁 Dropoff Pin:</b> ${displayName}`).openPopup();
+        }
+      }
+
+      // Update polyline route
+      const pLat = App.currentPickup ? App.currentPickup.lat : 13.0280;
+      const pLng = App.currentPickup ? App.currentPickup.lng : 80.0170;
+      const dLat = App.currentDropoff ? App.currentDropoff.lat : 13.0210;
+      const dLng = App.currentDropoff ? App.currentDropoff.lng : 80.0050;
+
+      if (App.routeLine) {
+        App.routeLine.setLatLngs([
+          [pLat, pLng],
+          [(pLat + dLat) / 2, (pLng + dLng) / 2],
+          [dLat, dLng]
+        ]);
+      }
+
+      if (App.map) {
+        App.map.fitBounds([[pLat, pLng], [dLat, dLng]], { padding: [60, 60] });
+      }
+
+      // Calculate exact Haversine distance in km
+      const R = 6371;
+      const dLatRad = (dLat - pLat) * Math.PI / 180;
+      const dLngRad = (dLng - pLng) * Math.PI / 180;
+      const a = Math.sin(dLatRad / 2) * Math.sin(dLatRad / 2) +
+                Math.cos(pLat * Math.PI / 180) * Math.cos(dLat * Math.PI / 180) *
+                Math.sin(dLngRad / 2) * Math.sin(dLngRad / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const distKm = Math.max(0.8, Math.round(R * c * 10) / 10);
+
+      // Recalculate dynamic fares for all vehicle categories
+      App.updateFaresForDistance(distKm);
+      App.showToast(`🎯 Dropoff Pin set to "${displayName}" (${distKm} km)! Estimated fares updated.`, 'success');
+
+    } catch (err) {
+      console.warn('Geocoding error:', err);
+    }
   },
 
   startUberRideSimulation(onProgressCallback, onCompleteCallback) {
