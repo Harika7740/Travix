@@ -147,6 +147,34 @@ const UserPortal = {
   },
 
   renderHistoryView() {
+    let rowsHtml = '';
+    if (App.rideHistory && App.rideHistory.length > 0) {
+      App.rideHistory.forEach(ride => {
+        rowsHtml += `
+          <tr>
+            <td><strong>#${ride.id}</strong></td>
+            <td>${ride.date}</td>
+            <td>
+              <div style="display:flex; align-items:center; gap:0.5rem;">
+                <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=80&q=80" style="width:28px; height:28px; border-radius:50%;">
+                ${ride.driver}
+              </div>
+            </td>
+            <td>${ride.pickup} ➔ ${ride.dropoff}</td>
+            <td><strong>₹${ride.fare}</strong> <span class="badge badge-success">Paid</span></td>
+            <td><span class="badge badge-success">🔑 PIN ${ride.pin} Verified</span></td>
+            <td>
+              <button class="btn btn-secondary" style="padding:0.4rem 0.8rem; font-size:0.8rem;" onclick="UserPortal.downloadInvoice('${ride.id}', '${ride.driver}', '${ride.fare}', '${ride.date.split(' ')[0]}')">
+                <i class="fa-solid fa-file-pdf"></i> Download PDF Invoice
+              </button>
+            </td>
+          </tr>
+        `;
+      });
+    } else {
+      rowsHtml = `<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--text-muted);">No rides booked yet.</td></tr>`;
+    }
+
     return `
       <h2><i class="fa-solid fa-receipt"></i> Ride History & Download Invoices</h2>
 
@@ -164,42 +192,7 @@ const UserPortal = {
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td><strong>#TRX-8819</strong></td>
-              <td>2026-07-28 22:30</td>
-              <td>
-                <div style="display:flex; align-items:center; gap:0.5rem;">
-                  <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=80&q=80" style="width:28px; height:28px; border-radius:50%;">
-                  Sarah Smith (Toyota Camry)
-                </div>
-              </td>
-              <td>Market St ➔ Union Square</td>
-              <td><strong>$18.50</strong> <span class="badge badge-success">Paid</span></td>
-              <td><span class="badge badge-warning">Guardian Mode</span></td>
-              <td>
-                <button class="btn btn-secondary" style="padding:0.4rem 0.8rem; font-size:0.8rem;" onclick="UserPortal.downloadInvoice('TRX-8819', 'Sarah Smith', '18.50', '2026-07-28')">
-                  <i class="fa-solid fa-file-pdf"></i> Download PDF Invoice
-                </button>
-              </td>
-            </tr>
-            <tr>
-              <td><strong>#TRX-7710</strong></td>
-              <td>2026-07-26 14:15</td>
-              <td>
-                <div style="display:flex; align-items:center; gap:0.5rem;">
-                  <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=80&q=80" style="width:28px; height:28px; border-radius:50%;">
-                  Elena Rostova (Honda Civic)
-                </div>
-              </td>
-              <td>SFO Airport ➔ Downtown SF</td>
-              <td><strong>$34.00</strong> <span class="badge badge-success">Paid</span></td>
-              <td><span class="badge badge-success">Female Match</span></td>
-              <td>
-                <button class="btn btn-secondary" style="padding:0.4rem 0.8rem; font-size:0.8rem;" onclick="UserPortal.downloadInvoice('TRX-7710', 'Elena Rostova', '34.00', '2026-07-26')">
-                  <i class="fa-solid fa-file-pdf"></i> Download PDF Invoice
-                </button>
-              </td>
-            </tr>
+            ${rowsHtml}
           </tbody>
         </table>
       </div>
@@ -461,11 +454,29 @@ const UserPortal = {
     );
   },
 
-  showTripCompletionModal(totalDistKm = 4.8) {
-    const destAddr = App.currentDropoff ? App.currentDropoff.address : 'Indiranagar 100ft Road, Bengaluru';
-    const vehName = App.selectedVehicle ? App.selectedVehicle.name : 'TRAVIX Safe Premier';
-    const farePrice = App.selectedVehicle ? App.selectedVehicle.price : '240.00';
-    const distText = typeof totalDistKm === 'number' ? `${totalDistKm} km` : '4.8 km';
+  showTripCompletionModal(totalDistKm = 8.8) {
+    const destAddr = App.currentDropoff ? App.currentDropoff.address : 'Poonamallee Bus Stand, Chennai';
+    const pickupAddr = App.currentPickup ? App.currentPickup.address : 'Saveetha, Thandalam';
+    const vehName = App.selectedVehicle ? App.selectedVehicle.name : 'Uber Go Mini';
+    const farePrice = App.selectedVehicle ? App.selectedVehicle.price : '106.00';
+    const distText = typeof totalDistKm === 'number' ? `${totalDistKm} km` : '8.8 km';
+    const rideId = `TRX-${Math.floor(1000 + Math.random() * 9000)}`;
+    const rideDate = new Date().toISOString().replace('T', ' ').substring(0, 16);
+
+    // Automatically store completed ride dynamically across all portals
+    App.saveRide({
+      id: rideId,
+      date: rideDate,
+      passenger: 'Jane Doe',
+      driver: 'Ananya Sharma (Verified)',
+      pickup: pickupAddr,
+      dropoff: destAddr,
+      fare: farePrice,
+      vehicle: vehName,
+      pin: App.currentRidePin || '4921',
+      status: 'COMPLETED',
+      distance: distText
+    });
 
     const modal = document.createElement('div');
     modal.className = 'modal-overlay';

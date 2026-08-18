@@ -103,8 +103,31 @@ const DriverPortal = {
   },
 
   renderTripsView() {
+    let rowsHtml = '';
+    if (App.rideHistory && App.rideHistory.length > 0) {
+      App.rideHistory.forEach(ride => {
+        rowsHtml += `
+          <tr>
+            <td><strong>#${ride.id}</strong></td>
+            <td>${ride.passenger || 'Jane Doe'} ★ 4.95</td>
+            <td>${ride.pickup}</td>
+            <td>${ride.dropoff}</td>
+            <td><strong>₹${ride.fare}</strong></td>
+            <td><span class="badge badge-success">🔑 PIN ${ride.pin} Verified</span></td>
+            <td>
+              <button class="btn btn-secondary" style="padding:0.4rem 0.8rem; font-size:0.8rem;" onclick="App.showToast('Navigating trip #${ride.id}...', 'info')">
+                <i class="fa-solid fa-location-arrow"></i> Completed
+              </button>
+            </td>
+          </tr>
+        `;
+      });
+    } else {
+      rowsHtml = `<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--text-muted);">No assigned trips yet.</td></tr>`;
+    }
+
     return `
-      <h2><i class="fa-solid fa-route"></i> Assigned Trips</h2>
+      <h2><i class="fa-solid fa-route"></i> Assigned Driver Trips</h2>
       
       <div class="table-container">
         <table>
@@ -115,24 +138,12 @@ const DriverPortal = {
               <th>Pickup Address</th>
               <th>Destination</th>
               <th>Fare</th>
-              <th>Safety Flags</th>
-              <th>Action</th>
+              <th>Safety Verification</th>
+              <th>Status</th>
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td><strong>#TRX-8819</strong></td>
-              <td>Jane Doe ★ 4.95</td>
-              <td>742 Market St</td>
-              <td>Union Square</td>
-              <td>$18.50</td>
-              <td><span class="badge badge-success">Female Priority</span></td>
-              <td>
-                <button class="btn btn-primary" style="padding:0.4rem 0.8rem; font-size:0.8rem;" onclick="App.showToast('Navigating to Market St pickup...', 'info')">
-                  <i class="fa-solid fa-location-arrow"></i> Start Trip
-                </button>
-              </td>
-            </tr>
+            ${rowsHtml}
           </tbody>
         </table>
       </div>

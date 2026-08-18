@@ -43,27 +43,52 @@ const AdminPortal = {
   },
 
   renderAnalyticsView() {
+    const totalRides = App.rideHistory ? App.rideHistory.length : 0;
+    let totalRevenue = 0;
+    if (App.rideHistory) {
+      App.rideHistory.forEach(r => totalRevenue += (parseFloat(r.fare) || 0));
+    }
+
+    let auditRowsHtml = '';
+    if (App.rideHistory && App.rideHistory.length > 0) {
+      App.rideHistory.forEach(ride => {
+        auditRowsHtml += `
+          <tr>
+            <td><strong>#${ride.id}</strong></td>
+            <td>${ride.date}</td>
+            <td>${ride.passenger || 'Jane Doe'}</td>
+            <td>${ride.driver || 'Ananya Sharma'}</td>
+            <td>${ride.pickup} ➔ ${ride.dropoff}</td>
+            <td><strong>₹${ride.fare}</strong></td>
+            <td><span class="badge badge-success">🔑 PIN ${ride.pin} Verified</span></td>
+          </tr>
+        `;
+      });
+    } else {
+      auditRowsHtml = `<tr><td colspan="7" style="text-align:center; padding:1.5rem; color:var(--text-muted);">No rides logged yet.</td></tr>`;
+    }
+
     return `
-      <h2><i class="fa-solid fa-chart-line" style="color:var(--primary);"></i> Platform Performance Analytics</h2>
+      <h2><i class="fa-solid fa-chart-line" style="color:var(--primary);"></i> Platform Performance Analytics & Real-Time Fleet Store</h2>
 
       <div class="metrics-grid">
         <div class="metric-card" style="border-left:4px solid var(--primary);">
           <div class="metric-icon" style="background:rgba(37,99,235,0.2); color:var(--primary);">
-            <i class="fa-solid fa-users"></i>
+            <i class="fa-solid fa-car-side"></i>
           </div>
           <div class="metric-info">
-            <h4>Total Passengers</h4>
-            <p>14,290</p>
+            <h4>Total Rides Booked</h4>
+            <p>${totalRides} Rides</p>
           </div>
         </div>
 
         <div class="metric-card" style="border-left:4px solid var(--success);">
           <div class="metric-icon" style="background:rgba(16,185,129,0.2); color:var(--success);">
-            <i class="fa-solid fa-car-on"></i>
+            <i class="fa-solid fa-indian-rupee-sign"></i>
           </div>
           <div class="metric-info">
-            <h4>Active Drivers</h4>
-            <p>1,420</p>
+            <h4>Total Fleet Revenue</h4>
+            <p>₹${totalRevenue.toFixed(2)}</p>
           </div>
         </div>
 
@@ -72,27 +97,42 @@ const AdminPortal = {
             <i class="fa-solid fa-user-clock"></i>
           </div>
           <div class="metric-info">
-            <h4>Pending Verification</h4>
-            <p>18</p>
+            <h4>Active Drivers</h4>
+            <p>1,420 Active</p>
           </div>
         </div>
 
         <div class="metric-card" style="border-left:4px solid var(--danger);">
           <div class="metric-icon" style="background:rgba(239,68,68,0.2); color:var(--danger);">
-            <i class="fa-solid fa-triangle-exclamation"></i>
+            <i class="fa-solid fa-shield-halved"></i>
           </div>
           <div class="metric-info">
-            <h4>Active SOS Alerts</h4>
-            <p>1 Active</p>
+            <h4>Guardian Live Stream</h4>
+            <p>Active</p>
           </div>
         </div>
       </div>
 
       <div style="background:var(--dark-card); padding:1.5rem; border-radius:var(--radius-md); border:1px solid var(--dark-border); margin-top:1.5rem;">
-        <h3>System Status & Security Summary</h3>
-        <p style="color:var(--text-muted); font-size:0.9rem; margin-top:0.5rem;">
-          All 3 portals operational. Firebase Authentication & Firestore schemas synced. Voice SOS stream listener online.
-        </p>
+        <h3><i class="fa-solid fa-database"></i> Live Fleet Ride Audit Log (Real-Time Storage)</h3>
+        <div class="table-container" style="margin-top:1rem;">
+          <table>
+            <thead>
+              <tr>
+                <th>Ride ID</th>
+                <th>Timestamp</th>
+                <th>Passenger</th>
+                <th>Driver</th>
+                <th>Route</th>
+                <th>Fare</th>
+                <th>Safety Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${auditRowsHtml}
+            </tbody>
+          </table>
+        </div>
       </div>
     `;
   },

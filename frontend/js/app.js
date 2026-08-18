@@ -3,9 +3,65 @@ const App = {
   currentPortal: 'user',
   map: null,
   driverMarker: null,
+  currentRidePin: '4921',
+
+  rideHistory: [
+    {
+      id: 'TRX-9982',
+      date: '2026-08-18 09:10',
+      passenger: 'Jane Doe',
+      driver: 'Ananya Sharma (Verified)',
+      pickup: 'Saveetha, Thandalam',
+      dropoff: 'Poonamallee Bus Stand, Chennai',
+      fare: '106.00',
+      vehicle: 'Uber Go Mini',
+      pin: '4921',
+      status: 'COMPLETED',
+      distance: '8.8 km'
+    },
+    {
+      id: 'TRX-8819',
+      date: '2026-08-18 08:30',
+      passenger: 'Jane Doe',
+      driver: 'Ananya Sharma (Verified)',
+      pickup: 'Saveetha, Thandalam',
+      dropoff: 'KG Centre Point, Thandalam',
+      fare: '50.00',
+      vehicle: 'Uber Auto',
+      pin: '8819',
+      status: 'COMPLETED',
+      distance: '2.1 km'
+    }
+  ],
 
   init() {
+    this.loadRideHistory();
     this.refresh();
+  },
+
+  saveRide(ride) {
+    this.rideHistory.unshift(ride);
+    try {
+      localStorage.setItem('travix_ride_history', JSON.stringify(this.rideHistory));
+      fetch('/api/v1/rides/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ride)
+      }).catch(err => console.warn('Sync API warning:', err));
+    } catch (e) {
+      console.warn('LocalStorage save warning:', e);
+    }
+  },
+
+  loadRideHistory() {
+    try {
+      const stored = localStorage.getItem('travix_ride_history');
+      if (stored) {
+        this.rideHistory = JSON.parse(stored);
+      }
+    } catch (e) {
+      console.warn('LocalStorage load warning:', e);
+    }
   },
 
   refresh() {
