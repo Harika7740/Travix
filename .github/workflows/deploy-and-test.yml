@@ -7,10 +7,6 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
-env:
-  ACTIONS_ALLOW_UNSECURE_COMMANDS: 'true'
-  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: 'true'
-
 permissions:
   contents: write
   pages: write
@@ -28,8 +24,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: './backend/package-lock.json'
 
       - name: Stage 3: Setup Java JDK 17
         uses: actions/setup-java@v4
@@ -39,40 +33,35 @@ jobs:
 
       - name: Stage 4: Install Dependencies
         run: |
-          npm install
-          cd backend && npm install
-          cd ../selenium_testing && npm install
-          cd ../appium_testing && npm install
+          npm install --no-audit
+          cd backend && npm install --no-audit
+          cd ../selenium_testing && npm install --no-audit
+          cd ../appium_testing && npm install --no-audit
 
-      - name: Stage 5: Run Static Security Analysis (Semgrep & Gitleaks)
+      - name: Stage 5: Build & Start Backend REST Service
         run: |
-          echo "Executing SAST Code & Secret Scanning..."
-          npx @lhci/cli --help || true
-
-      - name: Stage 6: Build & Start Backend REST Service
-        run: |
-          npm start &
+          node backend/server.js &
           echo "Waiting for server to start..."
-          sleep 5
-          curl -I http://localhost:5000/api/v1/health || exit 1
+          sleep 4
+          node -e "fetch('http://localhost:5000/api/v1/health').then(r=>r.json()).then(console.log).catch(err => { console.error(err); process.exit(1); })"
 
-      - name: Stage 7: Execute 400+ Selenium Web E2E Test Suite
+      - name: Stage 6: Execute 400+ Selenium Web E2E Test Suite
         run: |
           npm run test:selenium
 
-      - name: Stage 8: Execute 400+ Appium Mobile E2E Test Suite
+      - name: Stage 7: Execute 400+ Appium Mobile E2E Test Suite
         run: |
           npm run test:appium
 
-      - name: Stage 9: Execute Baseline Load Benchmark (100 VUs / 1 min)
+      - name: Stage 8: Execute Baseline Load Benchmark (100 VUs / 1 min)
         run: |
           npm run test:load
 
-      - name: Stage 10: Generate All Enterprise Reports & Dashboards
+      - name: Stage 9: Generate All Enterprise Reports & Dashboards
         run: |
           node scratch/generate_all_reports_400.js
 
-      - name: Stage 11: Publish GitHub Actions Execution Summary
+      - name: Stage 10: Publish GitHub Actions Execution Summary
         if: always()
         run: |
           cat << 'EOF' >> $GITHUB_STEP_SUMMARY
@@ -112,7 +101,7 @@ jobs:
           - `Vulnerability Test Results/` (SAST, DAST, OWASP Security Review & K6 Load Scripts)
           EOF
 
-      - name: Stage 12: Deploy Reports & Application to GitHub Pages
+      - name: Stage 11: Deploy Reports & Application to GitHub Pages
         if: always()
         uses: peaceiris/actions-gh-pages@v3
         with:
@@ -120,7 +109,7 @@ jobs:
           publish_dir: ./
           keep_files: true
 
-      - name: Stage 13: Upload All Test & Security Artifacts
+      - name: Stage 12: Upload All Test & Security Artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
