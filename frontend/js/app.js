@@ -48,9 +48,21 @@ const App = {
       attribution: '© OpenStreetMap & TRAVIX Safety Grid'
     }).addTo(this.map);
 
-    // Pickup & Dropoff Markers
-    this.pickupMarker = L.marker([12.9716, 77.5946]).addTo(this.map).bindPopup('<b>Pickup:</b> MG Road, Bengaluru, Karnataka, India').openPopup();
-    this.dropoffMarker = L.marker([12.9780, 77.6400]).addTo(this.map).bindPopup('<b>Dropoff:</b> Indiranagar 100ft Road, Bengaluru, Karnataka, India');
+    // Custom Visual Pins (Pickup & Dropoff)
+    const pickupPinIcon = L.divIcon({
+      className: 'custom-pickup-pin',
+      html: `<div style="background:#2563eb; color:white; width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 0 14px rgba(37,99,235,0.8); border:2px solid white;"><i class="fa-solid fa-location-dot" style="font-size:1.1rem;"></i></div>`,
+      iconSize: [34, 34]
+    });
+
+    const dropoffPinIcon = L.divIcon({
+      className: 'custom-dropoff-pin',
+      html: `<div style="background:#ef4444; color:white; width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 0 14px rgba(239,68,68,0.8); border:2px solid white;"><i class="fa-solid fa-flag-checkered" style="font-size:1.1rem;"></i></div>`,
+      iconSize: [34, 34]
+    });
+
+    this.pickupMarker = L.marker([12.9716, 77.5946], { icon: pickupPinIcon }).addTo(this.map).bindPopup('<b>📍 Pickup Pin:</b> MG Road, Bengaluru').openPopup();
+    this.dropoffMarker = L.marker([12.9780, 77.6400], { icon: dropoffPinIcon }).addTo(this.map).bindPopup('<b>🏁 Dropoff Pin:</b> Indiranagar 100ft Road');
 
     // Route line
     this.routeLine = L.polyline([
@@ -140,20 +152,24 @@ const App = {
     const totalDistKm = Math.max(1.2, Math.round(R * c * 10) / 10);
     const totalEtaMins = Math.max(3, Math.round(totalDistKm * 2.5));
 
+    const ridePin = Math.floor(1000 + Math.random() * 9000);
+    App.currentRidePin = ridePin;
+
     // Step 1: SEARCHING_DRIVER
     App.showToast(`🔍 Searching for nearest verified driver near ${pAddr}...`, 'info');
     if (onProgressCallback) onProgressCallback({ status: 'SEARCHING_DRIVER', message: 'Finding nearby verified drivers...' });
 
     // Step 2: DRIVER_ASSIGNED (after 2 seconds)
     setTimeout(() => {
-      App.showToast('✅ Driver Assigned: Ananya Sharma (Tata Nexon EV KA-01-EQ-4921)', 'success');
+      App.showToast(`✅ Driver Assigned: Ananya Sharma | 🔑 RIDE PIN: ${ridePin}`, 'success');
       if (onProgressCallback) onProgressCallback({
         status: 'DRIVER_ASSIGNED',
         driverName: 'Ananya Sharma (Verified)',
         vehicle: 'White Tata Nexon EV (KA-01-EQ-4921)',
         eta: '3 mins',
         distance: `${totalDistKm} km`,
-        speed: '38 km/h'
+        speed: '38 km/h',
+        ridePin: ridePin
       });
 
       // Move vehicle to dynamic pickup location
@@ -162,14 +178,15 @@ const App = {
 
       // Step 3: DRIVER_ARRIVED (after 4 seconds)
       setTimeout(() => {
-        App.showToast(`🚖 Driver arrived at ${pAddr}!`, 'success');
+        App.showToast(`🚖 Driver arrived at ${pAddr}! 🔑 Show PIN ${ridePin} to driver.`, 'success');
         if (onProgressCallback) onProgressCallback({
           status: 'DRIVER_ARRIVED',
           driverName: 'Ananya Sharma (Verified)',
           vehicle: 'White Tata Nexon EV (KA-01-EQ-4921)',
           eta: 'Arrived',
           distance: `${totalDistKm} km`,
-          speed: '0 km/h'
+          speed: '0 km/h',
+          ridePin: ridePin
         });
 
         // Step 4: RIDE_STARTED & LIVE DYNAMIC TRACKING (after 6 seconds)

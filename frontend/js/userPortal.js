@@ -389,6 +389,13 @@ const UserPortal = {
           </div>
         </div>
 
+        <!-- Uber 4-Digit Ride Safety Verification PIN Card -->
+        <div id="ride-pin-card" style="display:none; background:rgba(37,99,235,0.15); border:1.5px dashed var(--primary); padding:0.85rem; border-radius:var(--radius-sm); text-align:center;">
+          <div style="font-size:0.75rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">🔑 RIDE SAFETY VERIFICATION PIN</div>
+          <div style="font-size:1.85rem; font-weight:900; letter-spacing:8px; color:#60a5fa; margin-top:0.2rem;" id="ride-pin-display">4921</div>
+          <p style="font-size:0.75rem; color:var(--text-muted); margin-top:0.2rem;">Share this 4-digit PIN with driver Ananya Sharma before starting</p>
+        </div>
+
         <div class="live-trip-metrics">
           <div class="metric-pill">
             <label>ESTIMATED ETA</label>
@@ -417,6 +424,8 @@ const UserPortal = {
         const statusBadge = document.getElementById('trip-status-badge');
         const radarAnim = document.getElementById('radar-animation');
         const driverCard = document.getElementById('driver-card');
+        const pinCard = document.getElementById('ride-pin-card');
+        const pinDisplay = document.getElementById('ride-pin-display');
         const etaEl = document.getElementById('metric-eta');
         const distEl = document.getElementById('metric-dist');
         const speedEl = document.getElementById('metric-speed');
@@ -426,9 +435,17 @@ const UserPortal = {
         } else if (progress.status === 'DRIVER_ASSIGNED' || progress.status === 'DRIVER_ARRIVED' || progress.status === 'RIDE_STARTED') {
           if (radarAnim) radarAnim.style.display = 'none';
           if (driverCard) driverCard.style.display = 'flex';
+          if (pinCard) pinCard.style.display = 'block';
+
+          if (pinDisplay && progress.ridePin) {
+            pinDisplay.innerText = progress.ridePin;
+          }
 
           if (statusBadge) {
             let label = progress.status.replace('_', ' ');
+            if (progress.status === 'RIDE_STARTED' && pinCard) {
+              pinCard.innerHTML = `<div style="color:#10b981; font-weight:bold; font-size:0.85rem;"><i class="fa-solid fa-circle-check"></i> 🔑 PIN VERIFIED WITH DRIVER (${progress.ridePin || App.currentRidePin})</div>`;
+            }
             statusBadge.innerHTML = `<i class="fa-solid fa-circle-check"></i> ${label}`;
           }
 
