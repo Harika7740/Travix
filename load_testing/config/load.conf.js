@@ -2,7 +2,7 @@
  * Load Testing Configuration Parameters for TRAVIX Baseline Benchmark
  */
 module.exports = {
-  baseUrl: process.env.BASE_URL || 'http://localhost:5000',
+  baseUrl: process.env.BASE_URL || 'http://127.0.0.1:5000',
   virtualUsers: parseInt(process.env.VIRTUAL_USERS || '100'),
   durationSeconds: parseInt(process.env.DURATION_SECONDS || '60'), // 1 Minute
   rampUpSeconds: 5,
