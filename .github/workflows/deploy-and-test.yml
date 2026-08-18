@@ -37,6 +37,7 @@ jobs:
           cd backend && npm install --no-audit
           cd ../selenium_testing && npm install --no-audit
           cd ../appium_testing && npm install --no-audit
+          cd ../load_testing && npm install --no-audit
 
       - name: Stage 5: Build & Start Backend REST Service
         run: |
