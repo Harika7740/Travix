@@ -7,6 +7,10 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+env:
+  ACTIONS_ALLOW_UNSECURE_COMMANDS: 'true'
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 permissions:
   contents: write
   pages: write
@@ -18,10 +22,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 'Stage 1: Checkout Source Code'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: 'Stage 2: Setup Node.js Environment'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '20'
 
@@ -121,7 +125,7 @@ jobs:
       - name: 'Stage 11: Deploy Reports & Application to GitHub Pages'
         if: always()
         continue-on-error: true
-        uses: peaceiris/actions-gh-pages@v3
+        uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./
@@ -129,7 +133,7 @@ jobs:
 
       - name: 'Stage 12: Upload All Test & Security Artifacts'
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: travix-enterprise-excel-and-html-reports
           path: |
