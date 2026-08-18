@@ -50,17 +50,56 @@ const App = {
 
     // Pickup & Dropoff Markers
     this.pickupMarker = L.marker([12.9716, 77.5946]).addTo(this.map).bindPopup('<b>Pickup:</b> MG Road, Bengaluru, Karnataka, India').openPopup();
-    const dropoffMarker = L.marker([12.9780, 77.6400]).addTo(this.map).bindPopup('<b>Dropoff:</b> Indiranagar 100ft Road, Bengaluru, Karnataka, India');
-
-    // Automatically detect live location on load
-    this.detectLiveLocation();
+    this.dropoffMarker = L.marker([12.9780, 77.6400]).addTo(this.map).bindPopup('<b>Dropoff:</b> Indiranagar 100ft Road, Bengaluru, Karnataka, India');
 
     // Route line
-    const routeLine = L.polyline([
+    this.routeLine = L.polyline([
       [12.9716, 77.5946],
       [12.9750, 77.6100],
       [12.9780, 77.6400]
     ], { color: '#2563eb', weight: 5, opacity: 0.8 }).addTo(this.map);
+
+    // Map Click Listener to select custom dropoff location anywhere on the map
+    this.map.on('click', (e) => {
+      const lat = e.latlng.lat;
+      const lng = e.latlng.lng;
+      const dropLabel = `Map Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+
+      App.currentDropoff = { lat, lng, address: dropLabel };
+
+      // Move dropoff marker
+      if (this.dropoffMarker) {
+        this.dropoffMarker.setLatLng([lat, lng]).bindPopup(`<b>📍 Selected Dropoff:</b> ${dropLabel}`).openPopup();
+      }
+
+      // Update input field
+      const dropInput = document.getElementById('dropoff-input');
+      if (dropInput) dropInput.value = dropLabel;
+
+      // Update polyline route
+      const pPos = this.pickupMarker ? this.pickupMarker.getLatLng() : { lat: 12.9716, lng: 77.5946 };
+      this.routeLine.setLatLngs([
+        [pPos.lat, pPos.lng],
+        [(pPos.lat + lat) / 2, (pPos.lng + lng) / 2],
+        [lat, lng]
+      ]);
+
+      // Calculate distance (Haversine formula in km)
+      const R = 6371;
+      const dLat = (lat - pPos.lat) * Math.PI / 180;
+      const dLng = (lng - pPos.lng) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(pPos.lat * Math.PI / 180) * Math.cos(lat * Math.PI / 180) *
+                Math.sin(dLng / 2) * Math.sin(dLng / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const distKm = Math.max(1.2, Math.round(R * c * 10) / 10);
+
+      App.updateFaresForDistance(distKm);
+      App.showToast(`🎯 Dropoff Location set on map (${distKm} km)! Fares updated.`, 'success');
+    });
+
+    // Automatically detect live location on load
+    this.detectLiveLocation();
 
     // Driver vehicle marker
     const carIcon = L.divIcon({
@@ -215,6 +254,28 @@ const App = {
       },
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
     );
+  },
+
+  updateFaresForDistance(distKm) {
+    const autoFare = Math.max(40, Math.round(distKm * 18));
+    const miniFare = Math.max(70, Math.round(distKm * 28));
+    const premierFare = Math.max(120, Math.round(distKm * 48));
+    const xlFare = Math.max(180, Math.round(distKm * 75));
+
+    const cards = document.querySelectorAll('.vehicle-card');
+    if (cards.length >= 4) {
+      cards[0].querySelector('.vehicle-price').innerText = `₹${autoFare}.00`;
+      cards[0].setAttribute('onclick', `UserPortal.selectVehicle(this, 'Uber Auto', '${autoFare}.00')`);
+
+      cards[1].querySelector('.vehicle-price').innerText = `₹${miniFare}.00`;
+      cards[1].setAttribute('onclick', `UserPortal.selectVehicle(this, 'Uber Go Mini', '${miniFare}.00')`);
+
+      cards[2].querySelector('.vehicle-price').innerText = `₹${premierFare}.00`;
+      cards[2].setAttribute('onclick', `UserPortal.selectVehicle(this, 'TRAVIX Women Safe Premier', '${premierFare}.00')`);
+
+      cards[3].querySelector('.vehicle-price').innerText = `₹${xlFare}.00`;
+      cards[3].setAttribute('onclick', `UserPortal.selectVehicle(this, 'Uber Premier XL', '${xlFare}.00')`);
+    }
   }
 };
 
