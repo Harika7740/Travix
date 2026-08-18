@@ -219,14 +219,16 @@ body {
 }
 
 /* Map & Action Container */
+.user-portal-grid,
 .map-view-container {
   display: grid;
   grid-template-columns: 1fr 380px;
   gap: 1.5rem;
-  height: 520px;
+  min-height: 520px;
 }
 
 @media (max-width: 992px) {
+  .user-portal-grid,
   .map-view-container {
     grid-template-columns: 1fr;
     height: auto;
