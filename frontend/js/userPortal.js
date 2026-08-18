@@ -43,60 +43,103 @@ const UserPortal = {
       <h2><i class="fa-solid fa-bolt" style="color:var(--primary);"></i> Book Your Safe Ride</h2>
       <div class="user-portal-grid">
         <div class="map-card-container">
-          <div id="map" style="height: 100%; width: 100%; min-height: 480px; border-radius: 16px;"></div>
+          <div id="map" style="height: 100%; width: 100%; min-height: 520px; border-radius: 16px;"></div>
         </div>
         <div class="booking-control-card">
-          <h3><i class="fa-solid fa-location-dot"></i> Route Details</h3>
-          <div class="form-group" style="margin-top: 1rem;">
+          <h3><i class="fa-solid fa-location-dot"></i> Route & Options</h3>
+          
+          <div class="form-group" style="margin-top: 0.75rem;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
               <label>PICKUP LOCATION</label>
-              <button class="btn btn-secondary" onclick="App.detectLiveLocation()" style="padding:0.25rem 0.5rem; font-size:0.75rem;">
-                <i class="fa-solid fa-location-crosshairs"></i> Detect Live Location
+              <button class="btn btn-secondary" onclick="App.detectLiveLocation()" style="padding:0.2rem 0.5rem; font-size:0.75rem;">
+                <i class="fa-solid fa-location-crosshairs"></i> Detect Live
               </button>
             </div>
             <input type="text" id="pickup-input" class="form-input" value="MG Road, Bengaluru, Karnataka, India" />
           </div>
+
           <div class="form-group">
             <label>DROPOFF DESTINATION</label>
             <input type="text" id="dropoff-input" class="form-input" value="Indiranagar 100ft Road, Bengaluru, Karnataka, India" />
           </div>
 
-          <!-- Safety Preferences Toggles -->
-          <div style="background:var(--dark-bg); padding:1rem; border-radius:var(--radius-sm); border:1px solid var(--dark-border); display:flex; flex-direction:column; gap:0.75rem;">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <div>
-                <strong>Female Driver Priority</strong>
-                <p style="font-size:0.75rem; color:var(--text-muted);">Match only verified female drivers</p>
+          <!-- Uber Vehicle Category Selector -->
+          <label style="font-size:0.8rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-top:0.5rem; display:block;">CHOOSE VEHICLE CATEGORY</label>
+          
+          <div class="vehicle-options-list">
+            <div class="vehicle-card" onclick="UserPortal.selectVehicle(this, 'Uber Auto', '85.00')">
+              <div class="vehicle-details">
+                <div class="vehicle-icon-box"><i class="fa-solid fa-truck-monster"></i></div>
+                <div class="vehicle-info">
+                  <h4>Uber Auto <span class="badge badge-secondary" style="font-size:0.65rem;">3 seats</span></h4>
+                  <p>Fast auto-rickshaw • 3 mins away</p>
+                </div>
               </div>
-              <label class="switch">
-                <input type="checkbox" id="female-priority-check" checked>
-                <span class="slider"></span>
-              </label>
+              <div class="vehicle-price-box">
+                <div class="vehicle-price">₹85.00</div>
+                <div class="vehicle-eta">3 mins away</div>
+              </div>
             </div>
 
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <div>
-                <strong>Guardian Mode</strong>
-                <p style="font-size:0.75rem; color:var(--text-muted);">Auto-share live location with contacts</p>
+            <div class="vehicle-card" onclick="UserPortal.selectVehicle(this, 'Uber Go Mini', '140.00')">
+              <div class="vehicle-details">
+                <div class="vehicle-icon-box"><i class="fa-solid fa-car-side"></i></div>
+                <div class="vehicle-info">
+                  <h4>Uber Go / Mini <span class="badge badge-secondary" style="font-size:0.65rem;">4 seats</span></h4>
+                  <p>Affordable hatchbacks • 2 mins away</p>
+                </div>
               </div>
-              <label class="switch">
-                <input type="checkbox" id="guardian-mode-check" checked>
-                <span class="slider"></span>
-              </label>
+              <div class="vehicle-price-box">
+                <div class="vehicle-price">₹140.00</div>
+                <div class="vehicle-eta">2 mins away</div>
+              </div>
+            </div>
+
+            <div class="vehicle-card selected" onclick="UserPortal.selectVehicle(this, 'TRAVIX Women Safe Premier', '240.00')">
+              <div class="vehicle-details">
+                <div class="vehicle-icon-box"><i class="fa-solid fa-shield-cat"></i></div>
+                <div class="vehicle-info">
+                  <h4>TRAVIX Safe Premier <span class="badge badge-success" style="font-size:0.65rem;">Female Verified</span></h4>
+                  <p>Tata Nexon EV • Guardian Live Stream</p>
+                </div>
+              </div>
+              <div class="vehicle-price-box">
+                <div class="vehicle-price">₹240.00</div>
+                <div class="vehicle-eta">3 mins away</div>
+              </div>
+            </div>
+
+            <div class="vehicle-card" onclick="UserPortal.selectVehicle(this, 'Uber Premier XL', '380.00')">
+              <div class="vehicle-details">
+                <div class="vehicle-icon-box"><i class="fa-solid fa-truck-pickup"></i></div>
+                <div class="vehicle-info">
+                  <h4>Uber XL / SUV <span class="badge badge-secondary" style="font-size:0.65rem;">6 seats</span></h4>
+                  <p>Spacious SUV rides • 4 mins away</p>
+                </div>
+              </div>
+              <div class="vehicle-price-box">
+                <div class="vehicle-price">₹380.00</div>
+                <div class="vehicle-eta">4 mins away</div>
+              </div>
             </div>
           </div>
 
-          <!-- Fare Breakdown Display -->
-          <div id="fare-display" style="background:rgba(37,99,235,0.1); border:1px dashed var(--primary); padding:1rem; border-radius:var(--radius-sm);">
-            <div style="display:flex; justify-content:space-between;">
-              <span style="color:var(--text-muted);">Estimated Fare:</span>
-              <strong style="font-size:1.25rem; color:#60a5fa;">$18.50</strong>
+          <!-- Payment Options Selector -->
+          <label style="font-size:0.8rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; display:block;">PAYMENT METHOD</label>
+          <div class="payment-selector-bar">
+            <div class="payment-tab active" onclick="UserPortal.selectPayment(this, 'UPI (GPay / PhonePe)')">
+              <i class="fa-solid fa-mobile-screen"></i> UPI
             </div>
-            <p style="font-size:0.75rem; color:var(--text-muted); margin-top:0.25rem;">Includes 4.2 km dist • ~12 mins • Night mode safe</p>
+            <div class="payment-tab" onclick="UserPortal.selectPayment(this, 'Card ending in 4242')">
+              <i class="fa-solid fa-credit-card"></i> Card
+            </div>
+            <div class="payment-tab" onclick="UserPortal.selectPayment(this, 'Cash / Wallet')">
+              <i class="fa-solid fa-wallet"></i> Cash
+            </div>
           </div>
 
-          <button class="btn btn-primary" onclick="UserPortal.confirmRideRequest()" style="width:100%;">
-            <i class="fa-solid fa-car"></i> Request TRAVIX Ride
+          <button class="btn btn-primary" onclick="UserPortal.confirmRideRequest()" style="width:100%; font-size:1.05rem; padding:0.9rem;">
+            <i class="fa-solid fa-bolt"></i> Confirm TRAVIX Ride
           </button>
         </div>
       </div>
@@ -516,5 +559,19 @@ const UserPortal = {
     `;
     tbody.appendChild(tr);
     App.showToast(`Emergency contact ${name} added successfully!`, 'success');
+  },
+
+  selectVehicle(cardElement, name, price) {
+    document.querySelectorAll('.vehicle-card').forEach(el => el.classList.remove('selected'));
+    cardElement.classList.add('selected');
+    App.selectedVehicle = { name, price };
+    App.showToast(`Selected ${name} (Fare: ₹${price})`, 'info');
+  },
+
+  selectPayment(tabElement, method) {
+    document.querySelectorAll('.payment-tab').forEach(el => el.classList.remove('active'));
+    tabElement.classList.add('active');
+    App.selectedPayment = method;
+    App.showToast(`Payment method updated to ${method}`, 'info');
   }
 };
