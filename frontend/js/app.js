@@ -121,8 +121,27 @@ const App = {
   startUberRideSimulation(onProgressCallback, onCompleteCallback) {
     if (!this.driverMarker) return;
 
+    const pLat = App.currentPickup ? App.currentPickup.lat : 12.9716;
+    const pLng = App.currentPickup ? App.currentPickup.lng : 77.5946;
+    const pAddr = App.currentPickup ? App.currentPickup.address : 'Pickup Location';
+
+    const dLat = App.currentDropoff ? App.currentDropoff.lat : 12.9780;
+    const dLng = App.currentDropoff ? App.currentDropoff.lng : 77.6400;
+    const dAddr = App.currentDropoff ? App.currentDropoff.address : 'Dropoff Destination';
+
+    // Calculate total distance & ETA
+    const R = 6371;
+    const dLatRad = (dLat - pLat) * Math.PI / 180;
+    const dLngRad = (dLng - pLng) * Math.PI / 180;
+    const a = Math.sin(dLatRad / 2) * Math.sin(dLatRad / 2) +
+              Math.cos(pLat * Math.PI / 180) * Math.cos(dLat * Math.PI / 180) *
+              Math.sin(dLngRad / 2) * Math.sin(dLngRad / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const totalDistKm = Math.max(1.2, Math.round(R * c * 10) / 10);
+    const totalEtaMins = Math.max(3, Math.round(totalDistKm * 2.5));
+
     // Step 1: SEARCHING_DRIVER
-    App.showToast('🔍 Searching for nearest verified female driver...', 'info');
+    App.showToast(`🔍 Searching for nearest verified driver near ${pAddr}...`, 'info');
     if (onProgressCallback) onProgressCallback({ status: 'SEARCHING_DRIVER', message: 'Finding nearby verified drivers...' });
 
     // Step 2: DRIVER_ASSIGNED (after 2 seconds)
@@ -133,38 +152,46 @@ const App = {
         driverName: 'Ananya Sharma (Verified)',
         vehicle: 'White Tata Nexon EV (KA-01-EQ-4921)',
         eta: '3 mins',
-        distance: '4.8 km',
+        distance: `${totalDistKm} km`,
         speed: '38 km/h'
       });
 
-      // Move vehicle to pickup location
-      this.driverMarker.setLatLng([12.9716, 77.5946]);
-      this.map.panTo([12.9716, 77.5946]);
+      // Move vehicle to dynamic pickup location
+      this.driverMarker.setLatLng([pLat, pLng]);
+      this.map.panTo([pLat, pLng]);
 
       // Step 3: DRIVER_ARRIVED (after 4 seconds)
       setTimeout(() => {
-        App.showToast('🚖 Driver arrived at MG Road, Bengaluru!', 'success');
+        App.showToast(`🚖 Driver arrived at ${pAddr}!`, 'success');
         if (onProgressCallback) onProgressCallback({
           status: 'DRIVER_ARRIVED',
           driverName: 'Ananya Sharma (Verified)',
           vehicle: 'White Tata Nexon EV (KA-01-EQ-4921)',
           eta: 'Arrived',
-          distance: '4.8 km',
+          distance: `${totalDistKm} km`,
           speed: '0 km/h'
         });
 
-        // Step 4: RIDE_STARTED & LIVE TRACKING (after 6 seconds)
+        // Step 4: RIDE_STARTED & LIVE DYNAMIC TRACKING (after 6 seconds)
         setTimeout(() => {
-          App.showToast('🚀 Ride Started! Tracking live route to Indiranagar 100ft Road', 'success');
+          App.showToast(`🚀 Ride Started! Tracking live route to ${dAddr}`, 'success');
 
-          const routePoints = [
-            { lat: 12.9716, lng: 77.5946, distance: '4.8 km', eta: '12 mins', speed: '36 km/h' },
-            { lat: 12.9730, lng: 77.6000, distance: '4.1 km', eta: '10 mins', speed: '42 km/h' },
-            { lat: 12.9745, lng: 77.6100, distance: '3.3 km', eta: '8 mins', speed: '45 km/h' },
-            { lat: 12.9760, lng: 77.6200, distance: '2.4 km', eta: '5 mins', speed: '48 km/h' },
-            { lat: 12.9772, lng: 77.6310, distance: '1.2 km', eta: '3 mins', speed: '40 km/h' },
-            { lat: 12.9780, lng: 77.6400, distance: '0.0 km', eta: 'Arrived', speed: '0 km/h' }
-          ];
+          // Generate 6 dynamic waypoint steps from Pickup to Dropoff
+          const routePoints = [];
+          const totalSteps = 5;
+          for (let i = 0; i <= totalSteps; i++) {
+            const ratio = i / totalSteps;
+            const lat = pLat + (dLat - pLat) * ratio;
+            const lng = pLng + (dLng - pLng) * ratio;
+            const remDist = Math.max(0, Math.round((totalDistKm * (1 - ratio)) * 10) / 10);
+            const remEta = Math.max(0, Math.round(totalEtaMins * (1 - ratio)));
+            routePoints.push({
+              lat, lng,
+              distance: `${remDist} km`,
+              eta: remDist === 0 ? 'Arrived' : `${remEta} mins`,
+              speed: i === 0 || i === totalSteps ? '0 km/h' : `${Math.floor(35 + Math.random() * 15)} km/h`
+            });
+          }
 
           let pointIdx = 0;
           const trackingInterval = setInterval(() => {
@@ -184,8 +211,8 @@ const App = {
               });
             } else {
               clearInterval(trackingInterval);
-              App.showToast('🎉 Ride Completed! You have safely arrived at Indiranagar 100ft Road.', 'success');
-              if (onCompleteCallback) onCompleteCallback();
+              App.showToast(`🎉 Ride Completed! You have safely arrived at ${dAddr}.`, 'success');
+              if (onCompleteCallback) onCompleteCallback(totalDistKm);
             }
           }, 2000);
 
@@ -275,6 +302,70 @@ const App = {
 
       cards[3].querySelector('.vehicle-price').innerText = `₹${xlFare}.00`;
       cards[3].setAttribute('onclick', `UserPortal.selectVehicle(this, 'Uber Premier XL', '${xlFare}.00')`);
+    }
+  },
+
+  async geocodeInputAddress(addressText, isPickup = false) {
+    if (!addressText || addressText.trim().length < 3) return;
+    App.showToast(`🔍 Searching location: "${addressText}"...`, 'info');
+
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressText)}`);
+      const results = await response.json();
+
+      if (results && results.length > 0) {
+        const item = results[0];
+        const lat = parseFloat(item.lat);
+        const lng = parseFloat(item.lon);
+        const displayName = item.display_name.split(',')[0] || addressText;
+
+        if (isPickup) {
+          App.currentPickup = { lat, lng, address: addressText };
+          if (App.pickupMarker) {
+            App.pickupMarker.setLatLng([lat, lng]).bindPopup(`<b>📍 Pickup:</b> ${displayName}`).openPopup();
+          }
+        } else {
+          App.currentDropoff = { lat, lng, address: addressText };
+          if (App.dropoffMarker) {
+            App.dropoffMarker.setLatLng([lat, lng]).bindPopup(`<b>📍 Dropoff:</b> ${displayName}`).openPopup();
+          }
+        }
+
+        // Update polyline route
+        const pLat = App.currentPickup ? App.currentPickup.lat : 12.9716;
+        const pLng = App.currentPickup ? App.currentPickup.lng : 77.5946;
+        const dLat = App.currentDropoff ? App.currentDropoff.lat : 12.9780;
+        const dLng = App.currentDropoff ? App.currentDropoff.lng : 77.6400;
+
+        if (App.routeLine) {
+          App.routeLine.setLatLngs([
+            [pLat, pLng],
+            [(pLat + dLat) / 2, (pLng + dLng) / 2],
+            [dLat, dLng]
+          ]);
+        }
+
+        if (App.map) {
+          App.map.fitBounds([[pLat, pLng], [dLat, dLng]], { padding: [50, 50] });
+        }
+
+        // Calculate distance (Haversine formula in km)
+        const R = 6371;
+        const dLatRad = (dLat - pLat) * Math.PI / 180;
+        const dLngRad = (dLng - pLng) * Math.PI / 180;
+        const a = Math.sin(dLatRad / 2) * Math.sin(dLatRad / 2) +
+                  Math.cos(pLat * Math.PI / 180) * Math.cos(dLat * Math.PI / 180) *
+                  Math.sin(dLngRad / 2) * Math.sin(dLngRad / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const distKm = Math.max(1.2, Math.round(R * c * 10) / 10);
+
+        App.updateFaresForDistance(distKm);
+        App.showToast(`🎯 Found "${displayName}" (${distKm} km)! Updated fares.`, 'success');
+      } else {
+        App.showToast(`⚠️ Location "${addressText}" not found on map; using nearest grid point.`, 'warning');
+      }
+    } catch (err) {
+      console.warn('Geocoding error:', err);
     }
   }
 };

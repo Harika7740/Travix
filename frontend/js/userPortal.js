@@ -55,12 +55,12 @@ const UserPortal = {
                 <i class="fa-solid fa-location-crosshairs"></i> Detect Live
               </button>
             </div>
-            <input type="text" id="pickup-input" class="form-input" value="MG Road, Bengaluru, Karnataka, India" />
+            <input type="text" id="pickup-input" class="form-input" value="MG Road, Bengaluru, Karnataka, India" onchange="App.geocodeInputAddress(this.value, true)" />
           </div>
 
           <div class="form-group">
             <label>DROPOFF DESTINATION</label>
-            <input type="text" id="dropoff-input" class="form-input" value="Indiranagar 100ft Road, Bengaluru, Karnataka, India" />
+            <input type="text" id="dropoff-input" class="form-input" value="Indiranagar 100ft Road, Bengaluru, Karnataka, India" onchange="App.geocodeInputAddress(this.value, false)" />
           </div>
 
           <!-- Uber Vehicle Category Selector -->
@@ -437,14 +437,19 @@ const UserPortal = {
           if (speedEl) speedEl.innerText = progress.speed || '--';
         }
       },
-      () => {
+      (totalDistKm) => {
         // Complete callback: Show Uber Trip Completion Modal
-        UserPortal.showTripCompletionModal();
+        UserPortal.showTripCompletionModal(totalDistKm);
       }
     );
   },
 
-  showTripCompletionModal() {
+  showTripCompletionModal(totalDistKm = 4.8) {
+    const destAddr = App.currentDropoff ? App.currentDropoff.address : 'Indiranagar 100ft Road, Bengaluru';
+    const vehName = App.selectedVehicle ? App.selectedVehicle.name : 'TRAVIX Safe Premier';
+    const farePrice = App.selectedVehicle ? App.selectedVehicle.price : '240.00';
+    const distText = typeof totalDistKm === 'number' ? `${totalDistKm} km` : '4.8 km';
+
     const modal = document.createElement('div');
     modal.className = 'modal-overlay';
     modal.innerHTML = `
@@ -453,16 +458,16 @@ const UserPortal = {
           <i class="fa-solid fa-circle-check"></i>
         </div>
         <h2 style="font-size:1.5rem; color:var(--text-main); margin-bottom:0.25rem;">You Have Arrived!</h2>
-        <p style="color:var(--text-muted); font-size:0.9rem;">Indiranagar 100ft Road, Bengaluru</p>
+        <p style="color:var(--text-muted); font-size:0.9rem;">📍 Destination: <strong>${destAddr}</strong></p>
 
         <div style="background:var(--dark-bg); border:1px solid var(--dark-border); padding:1rem; border-radius:var(--radius-sm); margin:1.25rem 0; text-align:left;">
           <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;">
-            <span style="color:var(--text-muted);">Total Trip Fare:</span>
-            <strong style="font-size:1.25rem; color:#60a5fa;">₹240.00</strong>
+            <span style="color:var(--text-muted);">Total Trip Fare (${vehName}):</span>
+            <strong style="font-size:1.25rem; color:#60a5fa;">₹${farePrice}</strong>
           </div>
           <div style="display:flex; justify-content:space-between; font-size:0.8rem; color:var(--text-muted);">
-            <span>Distance Traveled: 4.8 km</span>
-            <span>Duration: 12 mins</span>
+            <span>Distance Traveled: ${distText}</span>
+            <span>Duration: ~12 mins</span>
           </div>
         </div>
 
@@ -476,7 +481,7 @@ const UserPortal = {
         </div>
 
         <div style="display:flex; gap:0.75rem; margin-top:1.5rem;">
-          <button class="btn btn-secondary" onclick="UserPortal.downloadInvoice('TRX-9982', 'Ananya Sharma', '240.00', '2026-08-17')" style="flex:1;">
+          <button class="btn btn-secondary" onclick="UserPortal.downloadInvoice('TRX-9982', 'Ananya Sharma', '${farePrice}', '2026-08-18')" style="flex:1;">
             <i class="fa-solid fa-file-pdf"></i> Download PDF Receipt
           </button>
           <button class="btn btn-primary" onclick="document.querySelector('.modal-overlay').remove(); App.refresh();" style="flex:1;">
