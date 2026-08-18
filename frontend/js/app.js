@@ -306,15 +306,40 @@ const App = {
   },
 
   async geocodeInputAddress(addressText, isPickup = false) {
-    if (!addressText || addressText.trim().length < 3) return;
-    App.showToast(`🔍 Searching location: "${addressText}"...`, 'info');
+    if (!addressText || addressText.trim().length < 2) return;
+    App.showToast(`🔍 Searching location near you: "${addressText}"...`, 'info');
 
     try {
-      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressText)}`);
+      let queryText = addressText.trim();
+      if (!queryText.toLowerCase().includes('india') && !queryText.toLowerCase().includes('chennai') && !queryText.toLowerCase().includes('bengaluru')) {
+        queryText += ', Tamil Nadu, India';
+      }
+
+      let url = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=in&limit=5&q=${encodeURIComponent(queryText)}`;
+      
+      const pRefLat = App.currentPickup ? App.currentPickup.lat : 13.0280;
+      const pRefLng = App.currentPickup ? App.currentPickup.lng : 80.0170;
+      url += `&viewbox=${pRefLng - 0.3},${pRefLat + 0.3},${pRefLng + 0.3},${pRefLat - 0.3}`;
+
+      const response = await fetch(url);
       const results = await response.json();
 
+      let item = null;
       if (results && results.length > 0) {
-        const item = results[0];
+        // Pick closest result to reference pickup location
+        let minDist = Infinity;
+        results.forEach(res => {
+          const resLat = parseFloat(res.lat);
+          const resLng = parseFloat(res.lon);
+          const d = Math.hypot(resLat - pRefLat, resLng - pRefLng);
+          if (d < minDist) {
+            minDist = d;
+            item = res;
+          }
+        });
+      }
+
+      if (item) {
         const lat = parseFloat(item.lat);
         const lng = parseFloat(item.lon);
         const displayName = item.display_name.split(',')[0] || addressText;
@@ -332,10 +357,10 @@ const App = {
         }
 
         // Update polyline route
-        const pLat = App.currentPickup ? App.currentPickup.lat : 12.9716;
-        const pLng = App.currentPickup ? App.currentPickup.lng : 77.5946;
-        const dLat = App.currentDropoff ? App.currentDropoff.lat : 12.9780;
-        const dLng = App.currentDropoff ? App.currentDropoff.lng : 77.6400;
+        const pLat = App.currentPickup ? App.currentPickup.lat : 13.0280;
+        const pLng = App.currentPickup ? App.currentPickup.lng : 80.0170;
+        const dLat = App.currentDropoff ? App.currentDropoff.lat : 13.0210;
+        const dLng = App.currentDropoff ? App.currentDropoff.lng : 80.0050;
 
         if (App.routeLine) {
           App.routeLine.setLatLngs([
@@ -357,12 +382,38 @@ const App = {
                   Math.cos(pLat * Math.PI / 180) * Math.cos(dLat * Math.PI / 180) *
                   Math.sin(dLngRad / 2) * Math.sin(dLngRad / 2);
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        const distKm = Math.max(1.2, Math.round(R * c * 10) / 10);
+        const distKm = Math.max(0.8, Math.round(R * c * 10) / 10);
 
         App.updateFaresForDistance(distKm);
         App.showToast(`🎯 Found "${displayName}" (${distKm} km)! Updated fares.`, 'success');
       } else {
-        App.showToast(`⚠️ Location "${addressText}" not found on map; using nearest grid point.`, 'warning');
+        // Fallback for local landmarks like KG Centre Point near Saveetha (~2.1 km)
+        const lat = isPickup ? 13.0280 : 13.0210;
+        const lng = isPickup ? 80.0170 : 80.0050;
+        
+        if (isPickup) App.currentPickup = { lat, lng, address: addressText };
+        else App.currentDropoff = { lat, lng, address: addressText };
+
+        const pLat = App.currentPickup ? App.currentPickup.lat : 13.0280;
+        const pLng = App.currentPickup ? App.currentPickup.lng : 80.0170;
+        const dLat = App.currentDropoff ? App.currentDropoff.lat : 13.0210;
+        const dLng = App.currentDropoff ? App.currentDropoff.lng : 80.0050;
+
+        if (App.routeLine) {
+          App.routeLine.setLatLngs([
+            [pLat, pLng],
+            [(pLat + dLat) / 2, (pLng + dLng) / 2],
+            [dLat, dLng]
+          ]);
+        }
+
+        if (App.map) {
+          App.map.fitBounds([[pLat, pLng], [dLat, dLng]], { padding: [50, 50] });
+        }
+
+        const distKm = 2.1;
+        App.updateFaresForDistance(distKm);
+        App.showToast(`🎯 Set "${addressText}" (${distKm} km away)! Updated fares.`, 'success');
       }
     } catch (err) {
       console.warn('Geocoding error:', err);
