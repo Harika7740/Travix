@@ -49,8 +49,11 @@ const App = {
     }).addTo(this.map);
 
     // Pickup & Dropoff Markers
-    const pickupMarker = L.marker([12.9716, 77.5946]).addTo(this.map).bindPopup('<b>Pickup:</b> MG Road, Bengaluru, Karnataka, India').openPopup();
+    this.pickupMarker = L.marker([12.9716, 77.5946]).addTo(this.map).bindPopup('<b>Pickup:</b> MG Road, Bengaluru, Karnataka, India').openPopup();
     const dropoffMarker = L.marker([12.9780, 77.6400]).addTo(this.map).bindPopup('<b>Dropoff:</b> Indiranagar 100ft Road, Bengaluru, Karnataka, India');
+
+    // Automatically detect live location on load
+    this.detectLiveLocation();
 
     // Route line
     const routeLine = L.polyline([
@@ -174,6 +177,42 @@ const App = {
     setTimeout(() => {
       toast.remove();
     }, 4000);
+  detectLiveLocation() {
+    if (!navigator.geolocation) {
+      App.showToast('Geolocation API not supported by browser; using default location.', 'warning');
+      return;
+    }
+
+    App.showToast('📍 Detecting your live GPS location...', 'info');
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        const liveAddress = `Live GPS: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+
+        App.currentPickup = { lat, lng, address: liveAddress };
+
+        // Update pickup input field if present
+        const pickupInput = document.getElementById('pickup-input');
+        if (pickupInput) pickupInput.value = liveAddress;
+
+        // Pan map and update pickup marker
+        if (App.map) {
+          App.map.setView([lat, lng], 15);
+          if (App.pickupMarker) {
+            App.pickupMarker.setLatLng([lat, lng]).bindPopup(`<b>📍 Live Pickup:</b> ${liveAddress}`).openPopup();
+          }
+        }
+
+        App.showToast(`📍 Live Location Detected: ${lat.toFixed(4)}, ${lng.toFixed(4)}`, 'success');
+      },
+      (error) => {
+        console.warn('Geolocation error:', error);
+        App.showToast('📍 GPS Permission Pending; defaulted to Bengaluru MG Road.', 'info');
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+    );
   }
 };
 

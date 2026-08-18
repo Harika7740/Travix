@@ -48,7 +48,12 @@ const UserPortal = {
         <div class="booking-control-card">
           <h3><i class="fa-solid fa-location-dot"></i> Route Details</h3>
           <div class="form-group" style="margin-top: 1rem;">
-            <label>PICKUP LOCATION</label>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <label>PICKUP LOCATION</label>
+              <button class="btn btn-secondary" onclick="App.detectLiveLocation()" style="padding:0.25rem 0.5rem; font-size:0.75rem;">
+                <i class="fa-solid fa-location-crosshairs"></i> Detect Live Location
+              </button>
+            </div>
             <input type="text" id="pickup-input" class="form-input" value="MG Road, Bengaluru, Karnataka, India" />
           </div>
           <div class="form-group">
